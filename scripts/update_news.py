@@ -20,18 +20,21 @@ import xml.etree.ElementTree as ET
 from scripts.ai_summarize import summarize_buckets
 from scripts.cache_summaries import restore_recent_summaries
 from scripts.verify_news import enrich_verification
+from scripts.priority_gulf import targeted_feeds, gulf_relevant, spotlight
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'news.json'
 NOW = dt.datetime.now(dt.timezone.utc)
 MAX_AGE_DAYS = 7
 MAX_ITEMS_PER_CATEGORY = 18
-CATEGORIES = ['monde', 'france', 'maroc', 'eco-maroc', 'eco-monde', 'ia', 'tech']
+CATEGORIES = ['golfe', 'monde', 'france', 'maroc', 'eco-maroc', 'eco-monde', 'ia', 'tech']
 
 # Sources choisies pour disposer de titres ET descriptions (RSS natifs des éditeurs).
 # Les URL fonctionnelles relevées auprès d'annuaires de flux en octobre 2026.
 FEEDS = [
     {'category': 'monde', 'name': 'RFI', 'url': 'https://www.rfi.fr/fr/monde/rss', 'rank': 4},
+    {'category': 'golfe', 'name': 'RFI', 'url': 'https://www.rfi.fr/fr/moyen-orient/rss', 'rank': 6, 'gulf_only': True},
+    {'category': 'golfe', 'name': 'France 24', 'url': 'https://www.france24.com/fr/moyen-orient/rss', 'rank': 5, 'gulf_only': True},
     {'category': 'monde', 'name': 'France 24', 'url': 'https://www.france24.com/fr/rss', 'rank': 3},
     {'category': 'monde', 'name': 'franceinfo', 'url': 'https://www.franceinfo.fr/monde.rss', 'rank': 3},
     {'category': 'france', 'name': 'franceinfo', 'url': 'https://www.franceinfo.fr/france.rss', 'rank': 4},
@@ -48,7 +51,7 @@ FEEDS = [
     {'category': 'tech', 'name': '01net', 'url': 'https://www.01net.com/rss/actus.xml', 'rank': 3, 'non_ai': True},
     {'category': 'tech', 'name': 'Numerama', 'url': 'https://www.numerama.com/tech/feed/', 'rank': 3, 'non_ai': True},
     {'category': 'tech', 'name': 'Clubic', 'url': 'https://www.clubic.com/xml/news.rss', 'rank': 2, 'non_ai': True},
-]
+] + targeted_feeds()
 
 MAROC_CONTEXT = re.compile(r'\b(?:maroc\w*|royaume|rabat|casablanca|tanger|fès|fes|marrakech|agadir|kénitra|kenitra|oujda|meknès|tetouan|tétouan|safi|laâyoune|dakhla|nador|berkane|salé|sale|bouskoura|bank al.maghrib|oncf|ocp|rni|pam|akhannouch|el mansouri|dirham\w*|makhzen)\b', re.I)
 ECON_MA = re.compile(r'\b(?:économi\w*|finance\w*|financi\w*|investissement\w*|banque\w*|bank al.maghrib|dirham|inflation|bourse|casablanca finance|taux directeur|budget|fiscal\w*|exportation\w*|importation\w*|industrie\w*|tourisme|croissance|emploi\w*|entreprise\w*|PIB|commerce extérieur|agriculture|immobilier|logistique|port(?:uaire)?|énergie|renouvelable|ONCF|OCP|CDG|AMMC|impôt\w*|taxe\w*)\b', re.I)
@@ -187,6 +190,14 @@ def fetch_feed(feed):
             url = normalize_url(url)
             if not title or not url or len(title) < 20:
                 continue
+            publisher = feed['name']
+            if feed.get('google_news'):
+                publisher = clean_text(child_text(item, 'source'))
+                if not publisher or publisher.lower() == 'google actualités':
+                    continue
+                suffix = ' - ' + publisher
+                if title.endswith(suffix):
+                    title = title[:-len(suffix)].strip()
             published = parse_time(child_text(item, 'pubDate', 'date', '{http://www.w3.org/2005/Atom}published', '{http://www.w3.org/2005/Atom}updated', '{http://purl.org/dc/elements/1.1/}date'))
             if not published or published > NOW + dt.timedelta(hours=1) or published < NOW - dt.timedelta(days=MAX_AGE_DAYS):
                 continue
@@ -199,6 +210,8 @@ def fetch_feed(feed):
             if not summary or not informative_summary(title, summary):
                 continue
             if GARBAGE.search(title):
+                continue
+            if feed.get('gulf_only') and not gulf_relevant(title, summary):
                 continue
             # Le flux Hespress est généraliste : ne pas mélanger les articles étrangers à la rubrique Maroc.
             if feed['name'] == 'Hespress FR' and not MAROC_CONTEXT.search(f'{title} {summary}'):
@@ -215,13 +228,15 @@ def fetch_feed(feed):
             published_iso = published.isoformat().replace('+00:00', 'Z')
             age_hours = max(0, (NOW - published).total_seconds() / 3600)
             score = editorial_score(title, summary, feed['rank'], age_hours)
+            if feed.get('gulf_only'):
+                score += 5
             output.append({
                 'id': hashlib.sha256(url.encode('utf-8')).hexdigest()[:20],
                 'category': category,
                 'title': title,
                 'summary': summary,
                 '_sourceText': clean_text(description)[:1200],
-                'source': feed['name'],
+                'source': publisher,
                 'publishedAt': published_iso,
                 'url': url,
                 'score': score,
@@ -318,7 +333,18 @@ def main():
     for group in buckets.values():
         for article in group:
             article.pop('_sourceText', None)
+    # Conserver un contexte historique clairement daté, sans le présenter
+    # comme une nouvelle fraîche. Ajouter si possible un fait récent recoupé.
+    live_gulf = [
+        a for a in buckets['golfe']
+        if a.get('verification', {}).get('status') == 'corroborated'
+        and parse_time(a['publishedAt']) is not None
+        and 0 <= (NOW - parse_time(a['publishedAt'])).total_seconds() <= 72 * 3600
+    ]
+    live_gulf.sort(key=lambda a: a['publishedAt'], reverse=True)
+    priority = spotlight(live_gulf[0] if live_gulf else None)
     result = {
+        'priority': priority,
         'generatedAt': NOW.isoformat().replace('+00:00', 'Z'),
         'count': total,
         'aiSummaryCount': ai_count,
