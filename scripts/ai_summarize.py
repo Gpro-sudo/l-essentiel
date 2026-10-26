@@ -19,8 +19,10 @@ DEFAULT_MODEL = "openrouter/free"
 
 SYSTEM_PROMPT = (
     "Tu es rédacteur d'un briefing d'actualité factuel, en français. "
-    "Tu dois UNIQUEMENT reformuler ou synthétiser les éléments vérifiables "
-    "des titres et extraits RSS fournis, sans navigation ni recours à ta mémoire. "
+    "Tu dois expliquer clairement ce qui est arrivé, qui est concerné et, "
+    "seulement si indiqué par les deux médias, pourquoi cela compte. "
+    "Utilise uniquement les titres et extraits RSS fournis, pas ta mémoire. "
+    "Respecte le stade précis de la nouvelle (projet, vote, entrée en vigueur). "
     "Aucune opinion, aucun sensationnalisme, aucune information inventée. "
     "N'ajoute ni chiffre, ni date, ni personne qui ne figure dans les éléments fournis. "
     "Chaque synthèse : une ou deux phrases en français, entre 55 et 178 caractères ; "
@@ -84,7 +86,8 @@ def select_articles(buckets: dict, now: dt.datetime, threshold: float = 6.0) -> 
             except (KeyError, ValueError, TypeError):
                 continue
             age = (now - when).total_seconds()
-            if -3600 <= age <= 86400 and float(a.get("score", 0)) >= threshold:
+            if (-3600 <= age <= 86400 and float(a.get("score", 0)) >= threshold
+                    and a.get("verification", {}).get("status") == "corroborated"):
                 fresh.append(a)
         if fresh:
             selected.append(max(fresh, key=lambda a: (a.get("score", 0), a["publishedAt"])))
@@ -107,7 +110,11 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
         {
             "id": a["id"],
             "titre": a["title"],
-            "texte_RSS": (a.get("_sourceText") or a["summary"])[:1200],
+            "texte_RSS": (a.get("_sourceText") or a["summary"])[:900],
+            "autres_medias": [
+                {"media": b.get("name"), "titre": b.get("title")}
+                for b in a.get("verification", {}).get("sources", [])[1:3]
+            ],
         }
         for a in articles
     ]
