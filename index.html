@@ -337,7 +337,23 @@
     function isValidUrl(url){try{return ['https:','http:'].includes(new URL(url).protocol)}catch{return false}}
     function allNews(){const c=state.data?.categories||{};return Object.values(c).flat().filter(a=>a&&a.id&&a.title&&a.url&&isValidUrl(a.url))}
     function supportedPrimary(a){return Boolean(a?.primarySource?.url && a?.titleType==='primary')}
-    function reliableForBriefing(a){return !a.headlineCaution && (a.verification?.status==='corroborated'||supportedPrimary(a))}
+    function mediaGroup(name){
+      // Protection côté navigateur contre les anciens fichiers RSS qui
+      // faisaient passer 01net.com pour une seconde rédaction.
+      let id=normTopic(name).replace(/\b(www|com|fr|net|org)\b/g,'').replace(/\s+/g,'');
+      id=id.replace(/^www/,'').replace(/(?:com|net|org|fr)$/,'');
+      const groups={'01net':'01net','bdm':'blogdumoderateur','blogdumoderateur':'blogdumoderateur','rfi':'francemediasmonde','france24':'francemediasmonde'};
+      return groups[id]||id;
+    }
+    function independentSources(a){
+      const sources=a.verification?.sources||[];
+      const names=sources.map(x=>mediaGroup(x.name)).filter(Boolean);
+      return new Set(names).size>=2;
+    }
+    function reliableForBriefing(a){
+      return !a.headlineCaution && (supportedPrimary(a) ||
+        (a.verification?.status==='corroborated'&&independentSources(a)));
+    }
     function countFor(key){
       if(key==='saved')return state.saved.length;
       if(key==='interests')return Object.values(state.preferences).filter(p=>p?.mode==='yes').length;
@@ -410,7 +426,7 @@
         items=items.filter(a=>[a.title,a.summary,a.source,CATEGORIES.find(c=>c.id===a.category)?.name].join(' ').toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));
       }
       if(state.section==='saved')items.sort((a,b)=>new Date(b.savedAt||b.publishedAt)-new Date(a.savedAt||a.publishedAt));
-      else if(state.mode==='short'&&state.section!=='home')items.sort((a,b)=>(Number(b.verification?.status==='corroborated')-Number(a.verification?.status==='corroborated'))*12+(b.score||0)+interestBoost(b)-(a.score||0)-interestBoost(a)||new Date(b.publishedAt)-new Date(a.publishedAt));
+      else if(state.mode==='short'&&state.section!=='home')items.sort((a,b)=>(Number(reliableForBriefing(b))-Number(reliableForBriefing(a)))*12+(b.score||0)+interestBoost(b)-(a.score||0)-interestBoost(a)||new Date(b.publishedAt)-new Date(a.publishedAt));
       else if(state.section!=='home')items.sort((a,b)=>new Date(b.publishedAt)-new Date(a.publishedAt));
       // Automobile : un article de source unique doit rester accessible avec
       // son statut « non recoupé » au lieu de masquer toute la rubrique.
@@ -449,7 +465,7 @@
       verification.classList.add('recouped');
       verification.textContent='Source primaire consultée · OpenAI (déclaration de l’entreprise)';
       verification.title='Résumé tiré d’une publication officielle, qui ne constitue pas une deuxième rédaction indépendante.';
-    }else if(v?.status==='corroborated'){
+    }else if(v?.status==='corroborated'&&independentSources(a)){
       verification.classList.add('recouped');
       const outlets=(v.sources||[]).map(s=>s.name).filter(Boolean);
       verification.textContent='✓ Recoupé · '+outlets.slice(0,3).join(' + ');
@@ -488,7 +504,41 @@
           ?corroborated+' actualité(s) recoupée(s) dans le flux. Les autres sont signalées « Source unique · non recoupé » : elles restent à confirmer.'
           :'Aucun article recoupé pour le moment. Les nouvelles ci-dessous proviennent d’une seule rédaction et restent à confirmer ; le simple fait de traiter le même thème ne suffit pas.';
       }const c=CATEGORIES.find(c=>c.id===state.section)||CATEGORIES[0];$('hero-title').textContent=c.title;$('hero-description').textContent=c.detail;$('hero-eyebrow').textContent=state.section==='home'?'Votre briefing quotidien':state.section==='saved'?'Vos lectures de côté':state.section==='interests'?'Vos thèmes suivis':`Rubrique / ${c.name}`;$('list-title').textContent=state.section==='home'?(state.mode==='short'?'Les faits recoupés, en bref':'Toutes les actualités'):state.section==='saved'?'Articles enregistrés':state.section==='interests'?'Actualités de mes sujets':`Actualités · ${c.name}`;$('list-label').textContent=state.section==='saved'?'Une lecture à votre rythme':state.section==='interests'?'Priorité à vos intérêts':state.section==='home'&&state.mode==='short'?'Une information recoupée par rubrique':state.section==='autos'?'Automobile : recoupées et à confirmer':'Une sélection, pas un déluge';$('range-24h').setAttribute('aria-pressed',String(state.range==='24h'));$('range-7d').setAttribute('aria-pressed',String(state.range==='7d'));$('mode-short').setAttribute('aria-pressed',String(state.mode==='short'));$('mode-all').setAttribute('aria-pressed',String(state.mode==='all'));$('reading-time').textContent=state.mode==='short'?'5 min':'10 min';const result=$('articles');result.replaceChildren();const warning=$('notice');warning.classList.remove('visible');if(state.loading){result.append(empty('Chargement des actualités…','Le briefing va s’afficher automatiquement.'));$('results-count').textContent='Chargement…';$('more-wrap').hidden=true;return}const generated=state.data?.generatedAt;const feedAge=generated?(Date.now()-new Date(generated).getTime())/3600000:Infinity;if(state.error||feedAge>3&&state.data?.count){warning.classList.add('visible');$('notice-text').textContent=state.error?'Impossible de recharger le flux. Les dernières données disponibles restent affichées.':`Dernière mise à jour il y a ${Math.floor(feedAge)} h. GitHub Actions peut parfois actualiser avec du retard.`}const items=articleList();$('results-count').textContent=`${items.length} actualité${items.length>1?'s':''}`;if(!items.length){let title=state.mode==='short'?'Aucune actualité recoupée dans cette sélection':'Aucune actualité dans cette sélection';let message=state.mode==='short'?'Aucune confirmation indépendante n’a été trouvée pour cette période. Essayez « 7 jours », ou « Tout » pour consulter les articles non recoupés, clairement signalés.':'Essayez « 7 jours » ou changez de rubrique.';if(state.section==='autos'){title='Aucune actualité automobile sur cette période';message='Essayez « 7 jours » ou « Tout ». Les sources automobiles peuvent publier peu de sujets certains jours.'}else if(state.section==='saved'){title='Aucun favori pour le moment';message='Utilisez l’icône de signet sur une actualité pour la conserver ici.'}else if(state.section==='interests'){title='Pas encore d’actualité sur vos sujets';message='Suivez un thème au-dessus, ou cliquez sur « Ça m’intéresse » sous une actualité. Essayez aussi « 7 jours ».'}else if(!state.data?.count){title='Le premier briefing n’est pas encore généré';message='Lancez une fois le workflow « Actualiser les actualités » sur GitHub, ou exécutez le script Python en local.'}result.append(empty(title,message));$('more-wrap').hidden=true;return}items.slice(0,state.visible).forEach((a,i)=>result.append(card(a,i)));$('more-wrap').hidden=items.length<=state.visible;if(!resetFilters)return;}
-    async function load(){const seq=++reqCount;state.error=false;try{const res=await fetch('news.json?t='+Date.now(),{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(seq!==reqCount)return;if(!data||typeof data.categories!=='object')throw new Error('Données invalides');state.data=data;const d=data.generatedAt;$('updated-label').textContent=d?`Mis à jour : ${labelDate(d)}`:'Premier chargement à effectuer.';$('sidebar-status').textContent=d?`Flux du ${labelDate(d)}`:'En attente du premier flux';}catch(err){state.error=true;console.warn('Flux inaccessible :',err)}finally{if(seq===reqCount){state.loading=false;update()}}}
+    let lastLoadedAt=0;
+    async function load(){
+      const seq=++reqCount;state.error=false;
+      try{
+        // La nouvelle version de l'interface refuse les anciens JSON
+        // dont les noms de médias et les titres n'étaient pas fiables.
+        let data=null;
+        for(let attempt=0;attempt<2;attempt++){
+          const url='news.json?editorial=3&t='+Date.now()+'&attempt='+attempt;
+          const res=await fetch(url,{cache:'no-store'});
+          if(!res.ok)throw new Error('HTTP '+res.status);
+          data=await res.json();
+          if(data?.editorialVersion>=3)break;
+          data=null;
+        }
+        if(seq!==reqCount)return;
+        if(!data||typeof data.categories!=='object'){
+          state.data=null;
+          throw new Error('Ancien fichier de nouvelles détecté : actualisation nécessaire');
+        }
+        if(state.data?.generatedAt&&new Date(data.generatedAt)<new Date(state.data.generatedAt)){
+          return; // ne pas revenir à une édition plus ancienne lors d'une requête retardée
+        }
+        state.data=data;
+        lastLoadedAt=Date.now();
+        const d=data.generatedAt;
+        $('updated-label').textContent=d?`Mis à jour : ${labelDate(d)}`:'Premier chargement à effectuer.';
+        $('sidebar-status').textContent=d?`Flux du ${labelDate(d)}`:'En attente du premier flux';
+      }catch(err){
+        state.error=true;
+        console.warn('Actualités non synchronisées :',err);
+      }finally{
+        if(seq===reqCount){state.loading=false;update()}
+      }
+    }
     $('priority-button').addEventListener('click',()=>{
       state.section='golfe';state.range='7d';state.visible=8;state.query='';
       $('search-input').value='';update();
@@ -517,7 +567,17 @@
     function themeButton(){$('theme-btn').setAttribute('aria-label',document.documentElement.dataset.theme==='dark'?'Activer le mode clair':'Activer le mode sombre')}
     themeButton();
     $('theme-btn').addEventListener('click',()=>{const theme=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=theme;try{localStorage.setItem('essentiel-theme',theme)}catch{}themeButton()});
-    nav();load();setInterval(load,10*60*1000);
+    nav();load();
+    setInterval(()=>{if(!document.hidden)load()},10*60*1000);
+    // Le bouton Retour peut restaurer une page gelée depuis le cache mémoire
+    // du navigateur sans relancer l'initialisation JavaScript.
+    window.addEventListener('pageshow',e=>{if(e.persisted)load()});
+    document.addEventListener('visibilitychange',()=>{
+      if(!document.hidden&&Date.now()-lastLoadedAt>30*1000)load();
+    });
+    window.addEventListener('focus',()=>{
+      if(Date.now()-lastLoadedAt>60*1000)load();
+    });
   </script>
 </body>
 </html>
