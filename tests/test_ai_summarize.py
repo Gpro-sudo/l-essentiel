@@ -71,6 +71,20 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(self.article["summary"], old)
         self.assertNotIn("summaryType", self.article)
 
+    def test_fallback_when_free_model_returns_no_final_text(self):
+        text = "La Bourse de Casablanca a ouvert lundi en hausse : le MASI progresse de 0,59 %. D'après le flux de l'éditeur, plusieurs valeurs bancaires expliquent une partie du mouvement."
+        empty = {"choices": [{"message": {"content": None, "reasoning": "not an answer"}}]}
+        reply = {"choices": [{"message": {"content": json.dumps(
+            {"items": [{"id": "a1", "summary": text}]}, ensure_ascii=False
+        )}}]}
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_key"}), patch(
+            "scripts.ai_summarize.urllib.request.urlopen",
+            side_effect=[MockHTTPResponse(empty), MockHTTPResponse(reply)]
+        ) as call:
+            self.assertEqual(summarize_buckets(self.buckets, self.now), 1)
+            self.assertEqual(call.call_count, 2)
+        self.assertEqual(self.article["summary"], text)
+
     def test_one_batched_result(self):
         text = "La Bourse de Casablanca a ouvert lundi en hausse : le MASI progresse de 0,59 %. D'après le flux de l'éditeur, plusieurs valeurs bancaires expliquent une partie du mouvement."
         reply = {"choices": [{"message": {"content": json.dumps(
