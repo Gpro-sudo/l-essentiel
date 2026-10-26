@@ -150,12 +150,23 @@ def corroborate(article: dict, pool: list[dict], extra: list[dict]) -> list[dict
     original_owner = owner(article["source"])
     selected = {original_owner}
     options = [
-        {"name": a["source"], "group": owner(a["source"]), "title": a["title"], "url": a["url"]}
+        {"name": a["source"], "group": owner(a["source"]), "title": a["title"],
+         "url": a["url"], "publishedAt": a["publishedAt"]}
         for a in pool if a["id"] != article["id"]
     ] + extra
     for candidate in options:
         group = candidate.get("group") or owner(candidate.get("name", ""))
         if not group or group in selected:
+            continue
+        # Les titres génériques (par ex. « la Bourse ouvre en hausse ») peuvent
+        # revenir chaque jour : des dates trop éloignées ne prouvent rien.
+        try:
+            first_time = dt.datetime.fromisoformat(article["publishedAt"].replace("Z", "+00:00"))
+            second_time = dt.datetime.fromisoformat(candidate["publishedAt"].replace("Z", "+00:00"))
+            max_gap = 8 if re.search(r"\b(bourse|masi|ouvre en hausse|ouvre en baisse)\b", norm(article["title"])) else 36
+            if abs((first_time - second_time).total_seconds()) > max_gap * 3600:
+                continue
+        except (KeyError, ValueError, TypeError):
             continue
         if compatible_events(article["title"], candidate.get("title", "")):
             confirmations.append({"name": candidate["name"], "url": candidate["url"], "title": candidate["title"]})
