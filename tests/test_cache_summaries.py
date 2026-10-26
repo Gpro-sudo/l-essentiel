@@ -8,11 +8,11 @@ from scripts.cache_summaries import restore_recent_summaries
 class CacheTests(unittest.TestCase):
     def setUp(self):
         self.now = dt.datetime(2026, 10, 26, 12, tzinfo=dt.timezone.utc)
-        self.summary = "Le MASI a progressé de 0,59 % ce lundi, porté par plusieurs valeurs bancaires."
+        self.summary = "La Bourse de Casablanca ouvre lundi en hausse. Le MASI progresse de 0,59 %, soutenu par plusieurs valeurs bancaires selon le relevé de la séance."
         self.current = {
             "id": "m1", "title": "La Bourse de Casablanca ouvre en hausse",
             "source": "Hespress FR", "publishedAt": "2026-10-26T09:00:00Z",
-            "summary": "Le MASI a progressé de 0,59 % ce lundi, porté par plusieurs valeurs bancaires.",
+            "summary": "La Bourse de Casablanca ouvre lundi en hausse. Le MASI progresse de 0,59 %, soutenu par plusieurs valeurs bancaires selon le relevé de la séance.",
             "verification": {"status": "corroborated"},
         }
         self.prev = {"generatedAt": "2026-10-26T11:00:00Z", "categories": {
