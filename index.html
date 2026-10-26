@@ -101,6 +101,7 @@
     .article:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
     .article-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
     .tag{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:7px;color:var(--accent);background:var(--accent-weak);font-size:10px;letter-spacing:.015em;font-weight:770;max-width:calc(100% - 38px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .headline-warning{font-size:10px;font-weight:720;color:var(--muted);background:var(--soft);border-radius:5px;padding:4px 7px}
     .ai-note{margin-left:auto;color:var(--accent);background:var(--soft);padding:4px 7px;border-radius:5px;font-size:10px;font-weight:730;white-space:nowrap}
     .bookmark{height:30px;width:30px;flex-shrink:0;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;border-radius:8px}
     .bookmark:hover{background:var(--soft);color:var(--accent)}
@@ -363,7 +364,7 @@
       // Aucune rubrique n'est remplie artificiellement.
       const briefing=[];
       for(const category of keys){
-        const best=fresh.filter(a=>a.category===category&&(a.score||0)>=6&&a.verification?.status==='corroborated'&&prefMode(a)!=='no').sort((a,b)=>(b.score||0)+interestBoost(b)-((a.score||0)+interestBoost(a))||new Date(b.publishedAt)-new Date(a.publishedAt))[0];
+        const best=fresh.filter(a=>a.category===category&&(a.score||0)>=6&&a.verification?.status==='corroborated'&&!a.headlineCaution&&prefMode(a)!=='no').sort((a,b)=>(b.score||0)+interestBoost(b)-((a.score||0)+interestBoost(a))||new Date(b.publishedAt)-new Date(a.publishedAt))[0];
         if(best)briefing.push(best);
       }
       return unique(briefing);
@@ -411,14 +412,25 @@
       // Automobile : un article de source unique doit rester accessible avec
       // son statut « non recoupé » au lieu de masquer toute la rubrique.
       if(state.mode==='short'&&!['saved','interests','autos'].includes(state.section))
-        items=items.filter(a=>a.verification?.status==='corroborated');
+        items=items.filter(a=>a.verification?.status==='corroborated'&&!a.headlineCaution);
       if(state.section!=='saved')items=groupStories(items);
       if(state.section==='interests')items.sort((a,b)=>interestBoost(b)-interestBoost(a)||new Date(b.publishedAt)-new Date(a.publishedAt));
       if(state.mode==='short'&&!['saved','interests'].includes(state.section))items=items.slice(0,state.section==='home'?9:8);
       return items;
     }
     function save(a){const i=state.saved.findIndex(x=>x.id===a.id);if(i>=0)state.saved.splice(i,1);else state.saved.unshift({...a,savedAt:new Date().toISOString()});try{localStorage.setItem('essentiel-saved',JSON.stringify(state.saved))}catch{}update(false)}
-    function card(a,index){const el=document.createElement('article');el.className='article';const head=document.createElement('div');head.className='article-top';const pill=document.createElement('span');pill.className='tag';pill.textContent=(state.section==='home'&&state.mode==='short'?String(index+1).padStart(2,'0')+' · ':'')+(CATEGORIES.find(c=>c.id===a.category)?.label||'Actualité');const b=document.createElement('button');b.type='button';b.className='bookmark';const marked=state.saved.some(x=>x.id===a.id);b.setAttribute('aria-label',marked?'Retirer des favoris':'Enregistrer dans les favoris');b.setAttribute('aria-pressed',String(marked));b.innerHTML=svg('bookmark',marked);b.addEventListener('click',()=>save(a));head.append(pill);if(a.summaryType==='ai'){const ai=document.createElement('span');ai.className='ai-note';ai.textContent='Synthèse IA';ai.title='Synthèse à partir des contenus RSS fournis par les éditeurs';head.append(ai)}head.append(b);const heading=document.createElement('h3');heading.title=a.title;const titleLink=document.createElement('a');titleLink.href=a.url;titleLink.target='_blank';titleLink.rel='noopener noreferrer';titleLink.textContent=a.title;heading.append(titleLink);const p=document.createElement('p');p.textContent=a.summary;const bottom=document.createElement('div');bottom.className='article-bottom';const left=document.createElement('div');left.className='left';const source=document.createElement('span');source.className='source';source.textContent=a.source||'Source';const sep=document.createElement('span');sep.textContent='·';const t=document.createElement('time');t.dateTime=a.publishedAt||'';t.textContent=age(a.publishedAt);t.title=labelDate(a.publishedAt);left.append(source,sep,t);const link=document.createElement('a');link.className='read';link.href=a.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source ';link.insertAdjacentHTML('beforeend',svg('arrow'));bottom.append(left,link);const verification=document.createElement('div');verification.className='verification-note';
+    function card(a,index){const el=document.createElement('article');el.className='article';const head=document.createElement('div');head.className='article-top';const pill=document.createElement('span');pill.className='tag';pill.textContent=(state.section==='home'&&state.mode==='short'?String(index+1).padStart(2,'0')+' · ':'')+(CATEGORIES.find(c=>c.id===a.category)?.label||'Actualité');const b=document.createElement('button');b.type='button';b.className='bookmark';const marked=state.saved.some(x=>x.id===a.id);b.setAttribute('aria-label',marked?'Retirer des favoris':'Enregistrer dans les favoris');b.setAttribute('aria-pressed',String(marked));b.innerHTML=svg('bookmark',marked);b.addEventListener('click',()=>save(a));head.append(pill);
+    if(a.displayTitle&&a.displayTitle!==a.title){
+      const neutral=document.createElement('span');neutral.className='ai-note';neutral.textContent='Titre reformulé';
+      neutral.title=a.titleType==='ai'?'Titre généré à partir des extraits disponibles, sans garantie de vérification indépendante. Original : '+a.title:'Phrase extraite du résumé fourni par la source. Original : '+a.title;
+      head.append(neutral);
+    }else if(a.headlineCaution){
+      const caution=document.createElement('span');caution.className='headline-warning';
+      caution.textContent='Titre d’origine à vérifier';
+      caution.title='Le titre d’origine emploie une formulation potentiellement sensationnaliste.';
+      head.append(caution);
+    }
+    if(a.summaryType==='ai'){const ai=document.createElement('span');ai.className='ai-note';ai.textContent='Synthèse IA';ai.title='Synthèse à partir des contenus RSS fournis par les éditeurs';head.append(ai)}head.append(b);const heading=document.createElement('h3');heading.title=a.displayTitle&&a.displayTitle!==a.title?'Titre original du média : '+a.title:a.title;const titleLink=document.createElement('a');titleLink.href=a.url;titleLink.target='_blank';titleLink.rel='noopener noreferrer';titleLink.textContent=a.displayTitle||a.title;heading.append(titleLink);const p=document.createElement('p');p.textContent=a.summary;const bottom=document.createElement('div');bottom.className='article-bottom';const left=document.createElement('div');left.className='left';const source=document.createElement('span');source.className='source';source.textContent=a.source||'Source';const sep=document.createElement('span');sep.textContent='·';const t=document.createElement('time');t.dateTime=a.publishedAt||'';t.textContent=age(a.publishedAt);t.title=labelDate(a.publishedAt);left.append(source,sep,t);const link=document.createElement('a');link.className='read';link.href=a.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source ';link.insertAdjacentHTML('beforeend',svg('arrow'));bottom.append(left,link);const verification=document.createElement('div');verification.className='verification-note';
     const v=a.verification;
     if(v?.status==='corroborated'){
       verification.classList.add('recouped');
