@@ -50,10 +50,10 @@ Le site GitHub Pages reste statique : **aucune clé API ne doit apparaître dans
 1. Créer une clé API sur [OpenRouter](https://openrouter.ai/settings/keys).
 2. Dans le dépôt GitHub, ouvrir **Settings → Secrets and variables → Actions → Secrets → New repository secret**.
 3. Nom du secret : `OPENROUTER_API_KEY`. Y coller la clé ; ne jamais la communiquer par chat ni la mettre dans le code.
-4. Optionnel : dans **Variables**, créer `OPENROUTER_MODEL` pour choisir un modèle. Par défaut : `openrouter/free`, le routeur de modèles gratuits.
+4. Optionnel : dans **Variables**, créer `OPENROUTER_MODEL` pour choisir un modèle. Par défaut : `liquid/lfm-2.5-2.6b:free`, un modèle gratuit capable de produire du JSON structuré. Vous pouvez choisir un autre modèle avec `OPENROUTER_MODEL`.
 5. Ouvrir **Actions → Actualiser les actualités → Run workflow**. Vérifier l'étape « Actualiser les informations » : le nombre de brèves IA validées y est affiché.
 
-Le workflow effectue normalement **une requête API par exécution**, et une deuxième tentative seulement si le format est rejeté (erreur 400) ; l'exécution est prévue environ une fois par heure. Les quotas gratuits sont limités et les tentatives échouées peuvent être décomptées. Les limitations de requêtes et la disponibilité des modèles gratuits peuvent varier. Si la clé est absente, invalide, si le quota est atteint, ou si la sortie IA ne passe pas la validation, l'application **conserve automatiquement les descriptions RSS**, sans interrompre le déploiement. Les modèles payants configurés volontairement peuvent engendrer des frais. La réponse du modèle reste une synthèse, non une preuve indépendante de véracité.
+Le workflow effectue normalement **une requête API par exécution**, et une deuxième tentative seulement si le format est rejeté (erreur 400) ; l'exécution est prévue environ une fois par heure. Les quotas gratuits sont limités et les tentatives échouées peuvent être décomptées. Les limitations de requêtes et la disponibilité des modèles gratuits peuvent varier. Si la clé est absente, invalide, si le quota est atteint, ou si la sortie IA ne passe pas la validation, l'application conserve les descriptions RSS ou, pour le même article toujours recoupé et récent, une synthèse IA précédemment validée. Elle n'interrompt pas le déploiement. Les modèles payants configurés volontairement peuvent engendrer des frais. La réponse du modèle reste une synthèse, non une preuve indépendante de véracité.
 
 ### Ajouter une rubrique ou un flux
 
