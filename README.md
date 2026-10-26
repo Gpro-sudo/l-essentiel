@@ -23,11 +23,21 @@ Ouvrir <http://localhost:8000>. Ne pas ouvrir `index.html` directement en `file:
 
 Le workflow récupère les RSS et publie directement le site (sans commit automatique). Il est planifié **une fois par heure**, avec une heure qui peut dériver selon la charge de GitHub Actions. Le bouton de rafraîchissement de l'interface recharge le JSON disponible sur le site ; il ne déclenche pas une nouvelle exécution GitHub Actions.
 
+## Comment sont recoupées les informations ?
+
+L'écran **Essentiel** ne montre que les événements retrouvés auprès d'au moins deux rédactions distinctes. Le système analyse le type d'événement (vote, projet, annonce, hausse...), les dates et les termes significatifs ; il rejette notamment les recoupements trompeurs entre « loi examinée » et « loi adoptée ». Deux titres du même groupe de presse ne comptent pas comme deux sources. Il recherche des confirmations dans les flux déjà collectés et dans les résultats RSS de recherche d'actualités.
+
+La mention **« Recoupé · média A + média B »** signifie uniquement que deux médias distincts rapportent un événement concordant. **Ce n'est pas un fact-checking humain ni une garantie d'exactitude de chaque chiffre ou de chaque déclaration.** Les sources peuvent reprendre une même dépêche ou commettre la même erreur. Les faits incertains ne doivent pas être présentés comme des certitudes et les affirmations d'une personne doivent lui être attribuées.
+
+Le bouton **Tout** laisse accessibles les informations de source unique, clairement indiquées **« Source unique · non recoupé »**. Si aucune confirmation suffisante n'a été trouvée pour une rubrique, le briefing ne remplit pas cette rubrique artificiellement. Le moteur de rapprochement reste heuristique : il peut manquer de véritables confirmations ou confondre des sujets proches malgré ses contrôles.
+
+L'interface affiche un titre sur deux lignes au besoin, trois lignes de texte au maximum, et l'identité des médias de recoupement. Il n'est pas nécessaire de consulter les sites externes pour lire le bref rappel des faits, mais les liens permettent d'aller plus loin.
+
 ## Sources et contenus
 
 Sources RSS configurées dans `scripts/update_news.py` : RFI, France 24, franceinfo, Hespress français, Le Courrier de l'Atlas, 01net, Numerama, Blog du Modérateur, Clubic. Chaque article renvoie à sa source.
 
-Sans clé OpenRouter, les textes courts proviennent des **descriptions RSS des éditeurs**, limitées à environ 190 caractères. Avec clé, une synthèse IA des extraits RSS est réalisée pour **une actualité prioritaire par rubrique** (jusqu'à sept articles en une seule requête), puis vérifiée sommairement (longueur et chiffres nouveaux). Chaque carte générée par l'IA affiche « Synthèse IA » ; les autres restent RSS. L'IA ne lit **pas** l'article complet et ne vérifie pas les faits indépendamment. Vérifiez toujours la source originale.
+Sans clé OpenRouter ou si le modèle échoue, les textes courts proviennent des **descriptions RSS des éditeurs**, limitées à environ 190 caractères. Avec clé, une synthèse IA des extraits RSS et des titres d'autres médias est tentée pour **une actualité recoupée prioritaire par rubrique** (jusqu'à sept articles en une requête, avec une tentative de repli si le routeur refuse le format). Le résultat est contrôlé sommairement (longueur et chiffres nouveaux). Chaque carte générée par l'IA affiche « Synthèse IA » ; les autres restent RSS. L'IA ne lit **pas** l'article complet et ne vérifie pas les faits indépendamment. Vérifiez toujours la source originale.
 
 La pertinence est basée sur une sélection de sources, des filtres thématiques, un score de fraîcheur, quelques mots-clés de signal et un dédoublonnage approximatif. Ce filtrage est imparfait : des sujets importants peuvent passer à travers et les sources peuvent avoir des angles différents. Le traitement peut laisser une rubrique peu remplie dans les dernières 24 h ; sélectionner **7 jours** pour élargir. La classification « Économie Maroc » détecte des mots liés à l'économie dans les titres marocains, et ne doit pas être considérée comme un classement éditorial parfait.
 
@@ -43,7 +53,7 @@ Le site GitHub Pages reste statique : **aucune clé API ne doit apparaître dans
 4. Optionnel : dans **Variables**, créer `OPENROUTER_MODEL` pour choisir un modèle. Par défaut : `openrouter/free`, le routeur de modèles gratuits.
 5. Ouvrir **Actions → Actualiser les actualités → Run workflow**. Vérifier l'étape « Actualiser les informations » : le nombre de brèves IA validées y est affiché.
 
-Le workflow effectue au maximum **une requête API par exécution**, avec environ une exécution par heure. Les limitations de requêtes et la disponibilité des modèles gratuits peuvent varier. Si la clé est absente, invalide, si le quota est atteint, ou si la sortie IA ne passe pas la validation, l'application **conserve automatiquement les descriptions RSS**, sans interrompre le déploiement. Les modèles payants configurés volontairement peuvent engendrer des frais. La réponse du modèle reste une synthèse, non une preuve indépendante de véracité.
+Le workflow effectue normalement **une requête API par exécution**, et une deuxième tentative seulement si le format est rejeté (erreur 400) ; l'exécution est prévue environ une fois par heure. Les quotas gratuits sont limités et les tentatives échouées peuvent être décomptées. Les limitations de requêtes et la disponibilité des modèles gratuits peuvent varier. Si la clé est absente, invalide, si le quota est atteint, ou si la sortie IA ne passe pas la validation, l'application **conserve automatiquement les descriptions RSS**, sans interrompre le déploiement. Les modèles payants configurés volontairement peuvent engendrer des frais. La réponse du modèle reste une synthèse, non une preuve indépendante de véracité.
 
 ### Ajouter une rubrique ou un flux
 
