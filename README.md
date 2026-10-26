@@ -37,6 +37,15 @@ La rubrique **Automobile & transport** récupère des titres et courts extraits 
 
 Exemple : le rapprochement **Tesla / SpaceX envisagé** constitue un sujet commun, mais il ne faut pas le décrire comme une fusion réalisée. Les projets conjoints, comme Terafab, sont suivis séparément. Les regroupements n'impliquent pas que les deux sociétés ont signé un accord.
 
+## Titres factuels plutôt que sensationnalistes
+
+La page conserve le **titre original du média** dans le lien et les données JSON, mais peut afficher un **titre reformulé** lorsque le titre initial contient une accroche sensationnaliste (par exemple « décision radicale », « coup de tonnerre », « scandale »). La reformulation est fondée uniquement sur le titre, la description RSS et les autres titres de recoupement ; elle n'est pas une vérification indépendante du contenu complet.
+
+- Lorsque l'IA produit un titre, un contrôle de longueur, de formulations accrocheuses et de chiffres non fournis est effectué. Les titres prudents (« envisager », « discuter ») ne doivent pas devenir des résultats définitifs (« fusion réalisée », « loi adoptée »).
+- **Si l'IA est indisponible**, une phrase complète, non sensationnaliste, peut être reprise telle quelle de la description RSS, avec la mention « Titre reformulé ».
+- Si aucune formulation suffisamment fidèle n'est disponible, le titre d'origine porte l'avertissement **« Titre d'origine à vérifier »** et n'est pas choisi pour le briefing court « Essentiel » ; il peut rester dans le flux complet pour transparence.
+- Les contrôles sont automatisés et imparfaits. Un article recoupé par plusieurs médias ne prouve pas que tous les détails sont véridiques.
+
 ## Comment sont recoupées les informations ?
 
 L'écran **Essentiel** ne montre que les événements retrouvés auprès d'au moins deux rédactions distinctes. Le système analyse le type d'événement (vote, projet, annonce, hausse...), les dates et les termes significatifs ; il rejette notamment les recoupements trompeurs entre « loi examinée » et « loi adoptée ». Deux titres du même groupe de presse ne comptent pas comme deux sources. Il recherche des confirmations dans les flux déjà collectés et dans les résultats RSS de recherche d'actualités.
