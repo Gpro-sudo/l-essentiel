@@ -55,6 +55,7 @@ class VerificationTests(unittest.TestCase):
             "group": "acp",
             "title": self.b["title"],
             "url": "https://news.google.com/articles/example",
+            "publishedAt": "2026-10-26T11:30:00Z",
         }
         buckets = {"monde": [self.a]}
         stats = enrich_verification(buckets, self.now, resolver=lambda title, now: [other])
@@ -67,6 +68,7 @@ class VerificationTests(unittest.TestCase):
             "group": "acp",
             "title": "RDC : l'Assemblée nationale examine la loi sur le référendum",
             "url": "https://news.google.com/articles/example",
+            "publishedAt": "2026-10-26T11:30:00Z",
         }
         buckets = {"monde": [self.a]}
         stats = enrich_verification(buckets, self.now, resolver=lambda title, now: [other])
