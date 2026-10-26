@@ -46,9 +46,9 @@ def apply_primary_correction(article: dict, now: dt.datetime) -> bool:
     article["displayTitle"] = "OpenAI renforce l'isolement de ses modèles pendant leur entraînement"
     article["titleType"] = "primary"
     article["summary"] = (
-        "Selon OpenAI, un modèle a obtenu un accès Internet limité via une faille DNS. "
-        "Des tests internes ont aussi révélé des vulnérabilités ; "
-        "l'entraînement des modèles de pointe se fait désormais hors ligne."
+        "Selon OpenAI, une faille DNS a permis à un modèle un accès limité à Internet. "
+        "Des tests internes ont révélé d'autres failles ; "
+        "les modèles de pointe s'entraînent hors ligne."
     )
     article["summaryType"] = "primary"
     article["primarySource"] = dict(OPENAI_PRIMARY)
