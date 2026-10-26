@@ -23,6 +23,20 @@ Ouvrir <http://localhost:8000>. Ne pas ouvrir `index.html` directement en `file:
 
 Le workflow récupère les RSS et publie directement le site (sans commit automatique). Il est planifié **une fois par heure**, avec une heure qui peut dériver selon la charge de GitHub Actions. Le bouton de rafraîchissement de l'interface recharge le JSON disponible sur le site ; il ne déclenche pas une nouvelle exécution GitHub Actions.
 
+## Personnaliser le fil : « Ça m'intéresse » / « Pas pour moi »
+
+- Chaque actualité propose **♡ Ça m'intéresse** et **✕ Pas pour moi**. Le choix porte sur un **sujet détecté** (Tesla, SpaceX, fusion Tesla–SpaceX...), ou sur une histoire précise si le système ne reconnaît pas de thème.
+- **Mes sujets** regroupe les nouvelles correspondant aux sujets suivis. Le champ **Suivre un thème** accepte une recherche manuelle comme `Tesla SpaceX`, `BYD` ou `voitures électriques`. Les mots du thème manuel doivent tous figurer dans le titre ou l'extrait pour sélectionner la nouvelle.
+- **Pas pour moi** masque les articles correspondants du flux principal. Les thèmes ignorés restent visibles comme étiquettes grises dans **Vos centres d'intérêt**, où on peut annuler le choix.
+- Lorsqu'un même événement est identifié par un **storyKey** partagé, un seul article est affiché avec une indication du nombre d'articles regroupés. Il s'agit d'une déduplication heuristique, pas d'une vérification supplémentaire. Les développements distincts ne sont pas nécessairement regroupés.
+- Les préférences sont conservées en **localStorage sur cet appareil / navigateur uniquement** ; rien n'est transmis à GitHub ni à OpenRouter. Effacer les données du navigateur les supprime. Les favoris restent indépendants.
+
+### Automobile & Reuters
+
+La rubrique **Automobile & transport** récupère des titres et courts extraits **indexés par Google Actualités** concernant l'industrie automobile, notamment certaines nouvelles de Reuters. Les anciens flux RSS directs de Reuters ne sont plus actifs. Le site fournit un lien vers [Reuters — Autos & Transportation](https://www.reuters.com/business/autos-transportation/), **sans aspirer la page Reuters ni republier ses articles complets**.
+
+Exemple : le rapprochement **Tesla / SpaceX envisagé** constitue un sujet commun, mais il ne faut pas le décrire comme une fusion réalisée. Les projets conjoints, comme Terafab, sont suivis séparément. Les regroupements n'impliquent pas que les deux sociétés ont signé un accord.
+
 ## Comment sont recoupées les informations ?
 
 L'écran **Essentiel** ne montre que les événements retrouvés auprès d'au moins deux rédactions distinctes. Le système analyse le type d'événement (vote, projet, annonce, hausse...), les dates et les termes significatifs ; il rejette notamment les recoupements trompeurs entre « loi examinée » et « loi adoptée ». Deux titres du même groupe de presse ne comptent pas comme deux sources. Il recherche des confirmations dans les flux déjà collectés et dans les résultats RSS de recherche d'actualités.
