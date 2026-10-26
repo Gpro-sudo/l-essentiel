@@ -15,7 +15,9 @@ SENSATIONAL = re.compile(
     r"rebondissement spectaculaire|va tout changer|va bouleverser|"
     r"nouveau seisme|personne ne s.y attendait|"
     r"vous n.allez pas croire|ce qu.il faut savoir|"
-    r"le monde sous le choc|une revelation|une annonce fracassante)\b",
+    r"le monde sous le choc|une revelation|une annonce fracassante|"
+    r"prison numerique|des modeles?.{0,55}s.echapp|"
+    r"intelligences?.{0,55}s.echapp)\b",
     re.I,
 )
 DRAMATIC_QUESTIONS = re.compile(
