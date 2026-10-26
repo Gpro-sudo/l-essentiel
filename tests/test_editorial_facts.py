@@ -33,7 +33,8 @@ class PrimaryCorrectionsTests(unittest.TestCase):
         self.assertTrue(apply_primary_correction(self.article, self.now))
         self.assertIn("isolement", self.article["displayTitle"])
         self.assertIn("faille DNS", self.article["summary"])
-        self.assertLessEqual(len(self.article["summary"]), 178)
+        self.assertLessEqual(len(self.article["summary"]), 340)
+        self.assertGreaterEqual(len(self.article["summary"]), 180)
         self.assertEqual(self.article["primarySource"]["url"],
             "https://openai.com/index/securing-our-frontier-model-training-environment/")
         self.assertEqual(self.article["verification"]["status"], "single-source")
