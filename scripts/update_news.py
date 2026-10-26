@@ -22,6 +22,7 @@ from scripts.cache_summaries import restore_recent_summaries
 from scripts.verify_news import enrich_verification
 from scripts.priority_gulf import targeted_feeds, gulf_relevant, spotlight
 from scripts.interests import interest_feeds, classify_story, automotive_related
+from scripts.headline_policy import sensational, neutral_title_from_excerpt
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'news.json'
@@ -337,10 +338,28 @@ def main():
     cached_ai = restore_recent_summaries(buckets, NOW)
     fresh_ai = summarize_buckets(buckets, NOW)
     ai_count = fresh_ai + cached_ai
-    # Les textes sources transmis à l'IA ne doivent pas être publiés dans le JSON.
+    # Ne pas afficher un titre accrocheur comme si c'était un fait confirmé.
+    # Priorité au titre descriptif validé ; repli sur une phrase source copiée
+    # sans ajout, sinon signaler le titre sensationnaliste d'origine.
+    normalized_count = 0
+    caution_count = 0
     for group in buckets.values():
         for article in group:
-            article.pop('_sourceText', None)
+            if sensational(article["title"]):
+                if not article.get("displayTitle"):
+                    extracted = neutral_title_from_excerpt(
+                        article["title"], article.get("_sourceText") or article["summary"]
+                    )
+                    if extracted:
+                        article["displayTitle"] = extracted
+                        article["titleType"] = "extract"
+                if not article.get("displayTitle"):
+                    article["headlineCaution"] = True
+                    caution_count += 1
+            if article.get("displayTitle"):
+                normalized_count += 1
+            article.pop("_sourceText", None)
+    print(f"Titrage : {normalized_count} titres descriptifs ; {caution_count} titres originaux à vérifier.")
     # Conserver un contexte historique clairement daté, sans le présenter
     # comme une nouvelle fraîche. Ajouter si possible un fait récent recoupé.
     live_gulf = [
