@@ -330,7 +330,7 @@
     function nav(){const elem=$('nav');elem.replaceChildren();for(const c of CATEGORIES){const b=document.createElement('button');b.type='button';b.setAttribute('aria-current',state.section===c.id?'page':'false');b.innerHTML=svg(c.icon);const t=document.createElement('span');t.textContent=c.name;const n=document.createElement('span');n.className='count';n.textContent=state.loading?'–':countFor(c.id);b.append(t,n);b.addEventListener('click',()=>{state.section=c.id;if(c.id==='interests')state.range='7d';state.visible=8;state.query='';$('search-input').value='';update();window.scrollTo({top:0,behavior:'smooth'})});elem.append(b)}}
     function unique(items){const seen=new Set();return items.filter(a=>{if(seen.has(a.id))return false;seen.add(a.id);return true})}
     function homeNews(){
-      const keys=CATEGORIES.filter(c=>!['home','saved'].includes(c.id)).map(c=>c.id);
+      const keys=CATEGORIES.filter(c=>!['home','saved','interests'].includes(c.id)).map(c=>c.id);
       const now=Date.now();
       const hours=state.range==='24h'?24:168;
       const fresh=allNews().filter(a=>{
@@ -407,7 +407,23 @@
       verification.textContent='Source unique · non recoupé';
       verification.title='Aucune confirmation indépendante n’a été trouvée lors du dernier contrôle.';
     }
-    el.append(head,heading,p,verification,bottom);return el}
+    const feedback=document.createElement('div');feedback.className='feedback';
+    const topic=a.topicLabel||a.title;
+    function option(mode,label){
+      const button=document.createElement('button');button.type='button';button.textContent=label;
+      const selected=prefMode(a)===mode;
+      button.setAttribute('aria-pressed',String(selected));
+      button.setAttribute('aria-label',label+' : '+topic);
+      button.title=(mode==='yes'?'Suivre ce sujet':'Masquer ce sujet')+' dans ce navigateur';
+      button.addEventListener('click',()=>setPreference(a.topicKey||a.id,topic,mode));
+      feedback.append(button);
+    }
+    option('yes','♡ Ça m’intéresse');
+    option('no','✕ Pas pour moi');
+    const note=document.createElement('span');note.className='topic-note';note.textContent='Sujet : '+topic;feedback.append(note);
+    const related=document.createElement('div');related.className='related-count';
+    related.textContent=(a.groupedCount||1)>1?String(a.groupedCount)+' articles regroupés sur cette histoire':'';
+    el.append(head,heading,p,related,feedback,verification,bottom);return el}
     function empty(title,message){const box=document.createElement('div');box.className='empty';box.innerHTML=svg('sparkles');const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;box.append(h,p);return box}
     function update(resetFilters=true){nav();renderPriority();renderInterests();const c=CATEGORIES.find(c=>c.id===state.section)||CATEGORIES[0];$('hero-title').textContent=c.title;$('hero-description').textContent=c.detail;$('hero-eyebrow').textContent=state.section==='home'?'Votre briefing quotidien':state.section==='saved'?'Vos lectures de côté':state.section==='interests'?'Vos thèmes suivis':`Rubrique / ${c.name}`;$('list-title').textContent=state.section==='home'?(state.mode==='short'?'Les faits recoupés, en bref':'Toutes les actualités'):state.section==='saved'?'Articles enregistrés':state.section==='interests'?'Actualités de mes sujets':`Actualités · ${c.name}`;$('list-label').textContent=state.section==='saved'?'Une lecture à votre rythme':state.section==='interests'?'Priorité à vos intérêts':state.section==='home'&&state.mode==='short'?'Une information recoupée par rubrique':'Une sélection, pas un déluge';$('range-24h').setAttribute('aria-pressed',String(state.range==='24h'));$('range-7d').setAttribute('aria-pressed',String(state.range==='7d'));$('mode-short').setAttribute('aria-pressed',String(state.mode==='short'));$('mode-all').setAttribute('aria-pressed',String(state.mode==='all'));$('reading-time').textContent=state.mode==='short'?'5 min':'10 min';const result=$('articles');result.replaceChildren();const warning=$('notice');warning.classList.remove('visible');if(state.loading){result.append(empty('Chargement des actualités…','Le briefing va s’afficher automatiquement.'));$('results-count').textContent='Chargement…';$('more-wrap').hidden=true;return}const generated=state.data?.generatedAt;const feedAge=generated?(Date.now()-new Date(generated).getTime())/3600000:Infinity;if(state.error||feedAge>3&&state.data?.count){warning.classList.add('visible');$('notice-text').textContent=state.error?'Impossible de recharger le flux. Les dernières données disponibles restent affichées.':`Dernière mise à jour il y a ${Math.floor(feedAge)} h. GitHub Actions peut parfois actualiser avec du retard.`}const items=articleList();$('results-count').textContent=`${items.length} actualité${items.length>1?'s':''}`;if(!items.length){let title=state.mode==='short'?'Aucune actualité recoupée dans cette sélection':'Aucune actualité dans cette sélection';let message=state.mode==='short'?'Aucune confirmation indépendante n’a été trouvée pour cette période. Essayez « 7 jours », ou « Tout » pour consulter les articles non recoupés, clairement signalés.':'Essayez « 7 jours » ou changez de rubrique.';if(state.section==='saved'){title='Aucun favori pour le moment';message='Utilisez l’icône de signet sur une actualité pour la conserver ici.'}else if(state.section==='interests'){title='Pas encore d’actualité sur vos sujets';message='Suivez un thème au-dessus, ou cliquez sur « Ça m’intéresse » sous une actualité. Essayez aussi « 7 jours ».'}else if(!state.data?.count){title='Le premier briefing n’est pas encore généré';message='Lancez une fois le workflow « Actualiser les actualités » sur GitHub, ou exécutez le script Python en local.'}result.append(empty(title,message));$('more-wrap').hidden=true;return}items.slice(0,state.visible).forEach((a,i)=>result.append(card(a,i)));$('more-wrap').hidden=items.length<=state.visible;if(!resetFilters)return;}
     async function load(){const seq=++reqCount;state.error=false;try{const res=await fetch('news.json?t='+Date.now(),{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(seq!==reqCount)return;if(!data||typeof data.categories!=='object')throw new Error('Données invalides');state.data=data;const d=data.generatedAt;$('updated-label').textContent=d?`Mis à jour : ${labelDate(d)}`:'Premier chargement à effectuer.';$('sidebar-status').textContent=d?`Flux du ${labelDate(d)}`:'En attente du premier flux';}catch(err){state.error=true;console.warn('Flux inaccessible :',err)}finally{if(seq===reqCount){state.loading=false;update()}}}
