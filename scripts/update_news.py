@@ -18,6 +18,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 from scripts.ai_summarize import summarize_buckets
+from scripts.verify_news import enrich_verification
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'news.json'
@@ -305,6 +306,8 @@ def main():
     if total == 0:
         print('Échec : aucun article collecté. On ne remplace pas le site par un flux vide.', file=sys.stderr)
         return 1
+    verification = enrich_verification(buckets, NOW)
+    print(f"Recoupement : {verification['corroborated']}/{verification['total']} actualités, {verification['checked']} recherches.")
     ai_count = summarize_buckets(buckets, NOW)
     # Les textes sources transmis à l'IA ne doivent pas être publiés dans le JSON.
     for group in buckets.values():
@@ -314,6 +317,7 @@ def main():
         'generatedAt': NOW.isoformat().replace('+00:00', 'Z'),
         'count': total,
         'aiSummaryCount': ai_count,
+        'verification': verification,
         'categories': buckets,
         'feeds': reports,
     }
