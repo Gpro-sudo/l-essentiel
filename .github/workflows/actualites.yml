@@ -44,10 +44,12 @@ jobs:
           from pathlib import Path
           data = json.loads(Path("news.json").read_text(encoding="utf-8"))
           total = data.get("count", 0)
+          corroborated = data.get("verification", {}).get("corroborated", 0)
           ai = data.get("aiSummaryCount", 0)
-          print(f"Actualités recueillies : {total}. Synthèses IA : {ai}.")
+          cached = data.get("aiCachedCount", 0)
+          print(f"Actualités recueillies : {total}. Recoupées : {corroborated}. Synthèses IA : {ai} (dont {cached} conservées).")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
-              report.write(f"### Bilan de L'Essentiel\n\n- Actualités recueillies : **{total}**\n- Synthèses IA : **{ai}**\n")
+              report.write(f"### Bilan de L'Essentiel\n\n- Actualités recueillies : **{total}**\n- Événements recoupés : **{corroborated}**\n- Synthèses IA : **{ai}**, dont **{cached}** conservées\n")
           PY
       - name: Préparer le site
         run: |
