@@ -213,7 +213,7 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
             a["summary"] = summary
             a["summaryType"] = "ai"
             # On conserve toujours le titre original dans a["title"].
-            neutral = validate_headline(item.get("headline"), a["title"], base_description)
+            neutral = validate_headline(item.get("headline"), a["title"], base_description) if sensational(a["title"]) else None
             if neutral:
                 a["displayTitle"] = neutral
                 a["titleType"] = "ai"
