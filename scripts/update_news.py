@@ -23,6 +23,7 @@ from scripts.verify_news import enrich_verification
 from scripts.priority_gulf import targeted_feeds, gulf_relevant, spotlight
 from scripts.interests import interest_feeds, classify_story, automotive_related
 from scripts.headline_policy import sensational, neutral_title_from_excerpt
+from scripts.editorial_facts import apply_primary_correction
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'news.json'
@@ -343,8 +344,11 @@ def main():
     # sans ajout, sinon signaler le titre sensationnaliste d'origine.
     normalized_count = 0
     caution_count = 0
+    primary_count = 0
     for group in buckets.values():
         for article in group:
+            if apply_primary_correction(article, NOW):
+                primary_count += 1
             if sensational(article["title"]):
                 if not article.get("displayTitle"):
                     extracted = neutral_title_from_excerpt(
@@ -359,7 +363,7 @@ def main():
             if article.get("displayTitle"):
                 normalized_count += 1
             article.pop("_sourceText", None)
-    print(f"Titrage : {normalized_count} titres descriptifs ; {caution_count} titres originaux à vérifier.")
+    print(f"Titrage : {normalized_count} titres descriptifs ; {caution_count} titres originaux à vérifier ; {primary_count} corrections avec document primaire.")
     # Conserver un contexte historique clairement daté, sans le présenter
     # comme une nouvelle fraîche. Ajouter si possible un fait récent recoupé.
     live_gulf = [
