@@ -376,6 +376,7 @@ def main():
     priority = spotlight(live_gulf[0] if live_gulf else None)
     result = {
         'priority': priority,
+        'editorialVersion': 3,
         'generatedAt': NOW.isoformat().replace('+00:00', 'Z'),
         'count': total,
         'aiSummaryCount': ai_count,
