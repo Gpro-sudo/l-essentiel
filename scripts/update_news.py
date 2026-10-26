@@ -309,8 +309,10 @@ def main():
         return 1
     verification = enrich_verification(buckets, NOW)
     print(f"Recoupement : {verification['corroborated']}/{verification['total']} actualités, {verification['checked']} recherches.")
-    fresh_ai = summarize_buckets(buckets, NOW)
+    # Réutiliser d'abord les synthèses fraîches ; appeler l'IA uniquement pour
+    # les sujets nouveaux afin de respecter le quota des modèles gratuits.
     cached_ai = restore_recent_summaries(buckets, NOW)
+    fresh_ai = summarize_buckets(buckets, NOW)
     ai_count = fresh_ai + cached_ai
     # Les textes sources transmis à l'IA ne doivent pas être publiés dans le JSON.
     for group in buckets.values():
