@@ -32,7 +32,10 @@ jobs:
       - name: Vérifier la sélection éditoriale
         run: python -m unittest discover -s tests
       - name: Actualiser les informations
-        run: python scripts/update_news.py
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openrouter/free' }}
+        run: python -m scripts.update_news
       - name: Préparer le site
         run: |
           mkdir -p dist
