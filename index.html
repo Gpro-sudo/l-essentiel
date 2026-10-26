@@ -48,6 +48,21 @@
     .hero .hero-note{border:1px solid var(--line);background:var(--paper);border-radius:15px;padding:15px 18px;min-width:140px;box-shadow:var(--shadow)}
     .hero-note strong{display:block;font-size:34px;line-height:1;font-weight:770;letter-spacing:-.07em}
     .hero-note span{color:var(--muted);display:block;font-size:11px;margin-top:9px}
+    .priority-feature{margin-top:24px;padding:20px 22px;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:13px;box-shadow:var(--shadow)}
+    .priority-feature[hidden],.priority-latest[hidden]{display:none}
+    .priority-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--accent);font-size:11px;font-weight:800;letter-spacing:.03em}
+    .priority-top span:last-child{color:var(--muted);font-weight:620}
+    .priority-feature h2{font-size:22px;line-height:1.3;letter-spacing:-.035em;margin:10px 0 8px}
+    .priority-feature>p{color:var(--ink);font-size:14px;line-height:1.65;margin:0 0 12px;max-width:830px}
+    .priority-latest{border-top:1px solid var(--line);padding-top:12px;margin:12px 0;font-size:12px}
+    .priority-latest strong{font-size:11px;color:var(--accent)}
+    .priority-latest div{font-weight:760;margin:4px 0}
+    .priority-latest p{margin:0;color:var(--muted)}
+    .priority-bottom{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:11px;border-top:1px solid var(--line);padding-top:12px}
+    .priority-sources{display:flex;flex-wrap:wrap;gap:8px}
+    .priority-sources a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+    #priority-button{margin-left:auto;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:7px 10px;color:var(--ink);font-weight:700;font-size:11px}
+    #priority-button:hover{border-color:var(--accent)}
     .toolbar{display:flex;gap:13px;justify-content:space-between;align-items:center;padding:28px 0 20px;flex-wrap:wrap}
     .search{min-width:230px;max-width:420px;flex:1;position:relative;display:flex;align-items:center}
     .search svg{position:absolute;left:14px;width:17px;height:17px;color:var(--muted);pointer-events:none}
@@ -145,6 +160,21 @@
           </div>
           <div class="hero-note"><strong id="reading-time">5 min</strong><span>pour faire le point.</span></div>
         </header>
+        <section class="priority-feature" id="priority-section" aria-label="Suivi du conflit dans le Golfe" hidden>
+          <div class="priority-top"><span>Conflit majeur · Moyen-Orient</span><span id="priority-date"></span></div>
+          <h2 id="priority-title"></h2>
+          <p id="priority-summary"></p>
+          <div id="priority-latest" class="priority-latest" hidden>
+            <strong>Dernier développement recoupé</strong>
+            <div id="priority-latest-title"></div>
+            <p id="priority-latest-summary"></p>
+          </div>
+          <div class="priority-bottom">
+            <span id="priority-note"></span>
+            <div class="priority-sources" id="priority-sources"></div>
+            <button id="priority-button" type="button">Voir les informations du Golfe</button>
+          </div>
+        </section>
         <div class="toolbar">
           <label class="search" for="search-input">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg>
@@ -182,6 +212,7 @@
     'use strict';
     const CATEGORIES = [
       {id:'home', name:'À la une', label:'À la une', icon:'home', title:'Le monde, sans le bruit.', detail:'Les faits importants, classés par domaine. Trois lignes maximum par actualité. Vous gardez l’information, pas le bruit.'},
+      {id:'golfe',name:'Guerre dans le Golfe',label:'Golfe',icon:'shield',title:'Le Golfe : les faits, les enjeux.',detail:'Conflit régional, détroit d’Ormuz, diplomatie et énergie. Des sources recoupées, avec un contexte explicitement daté.'},
       {id:'monde',name:'Monde',label:'Monde',icon:'globe',title:'L’essentiel du monde.',detail:'Diplomatie, géopolitique et événements majeurs. Sans commentaires interminables.'},
       {id:'france',name:'France',label:'France',icon:'landmark',title:'La France, en bref.',detail:'Politique, société et décisions qui comptent.'},
       {id:'maroc',name:'Maroc',label:'Maroc',icon:'map',title:'Le Maroc, en bref.',detail:'Les informations marocaines utiles, sans le flux permanent.'},
@@ -193,6 +224,7 @@
     ];
     const ICONS = {
       home:'<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12h10M12 7v10"/>',
+      shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
       globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18M12 3c-5 5-5 13 0 18"/>',
       landmark:'<path d="m3 10 9-6 9 6M4 10h16M6 10v9m4-9v9m4-9v9m4-9v9M3 20h18"/>',
       map:'<path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2V6ZM9 4v14m6-12v14"/>',
@@ -237,6 +269,30 @@
       }
       return unique(briefing);
     }
+    function renderPriority(){
+      const data=state.data?.priority;
+      const section=$('priority-section');
+      if(!data||!['home','golfe'].includes(state.section)){section.hidden=true;return}
+      section.hidden=false;
+      $('priority-date').textContent='Contexte daté du '+new Date(data.asOf+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+      $('priority-title').textContent=data.title;
+      $('priority-summary').textContent=data.summary;
+      const ageDays=(Date.now()-new Date(data.asOf+'T12:00:00').getTime())/86400000;
+      $('priority-note').textContent=ageDays>7?'Contexte historique — les événements peuvent avoir évolué.':(data.note||'Contexte daté, non actualisé en direct.');
+      const sources=$('priority-sources');sources.replaceChildren();
+      for(const src of (data.sources||[])){
+        if(!isValidUrl(src.url))continue;
+        const a=document.createElement('a');a.href=src.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=src.name;sources.append(a);
+      }
+      const latest=$('priority-latest');
+      const entry=data.latest;
+      const latestAge=entry?(Date.now()-new Date(entry.publishedAt).getTime())/3600000:Infinity;
+      latest.hidden=!(entry&&latestAge>=-1&&latestAge<=72);
+      if(!latest.hidden){
+        $('priority-latest-title').textContent=entry.title;
+        $('priority-latest-summary').textContent=entry.summary;
+      }
+    }
     function articleList(){
       let items=state.section==='saved'?state.saved.slice():state.section==='home'?homeNews():(state.data?.categories?.[state.section]||[]).slice();
       items=unique(items);
@@ -269,8 +325,13 @@
     }
     el.append(head,heading,p,verification,bottom);return el}
     function empty(title,message){const box=document.createElement('div');box.className='empty';box.innerHTML=svg('sparkles');const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;box.append(h,p);return box}
-    function update(resetFilters=true){nav();const c=CATEGORIES.find(c=>c.id===state.section)||CATEGORIES[0];$('hero-title').textContent=c.title;$('hero-description').textContent=c.detail;$('hero-eyebrow').textContent=state.section==='home'?'Votre briefing quotidien':state.section==='saved'?'Vos lectures de côté':`Rubrique / ${c.name}`;$('list-title').textContent=state.section==='home'?(state.mode==='short'?'Les faits recoupés, en bref':'Toutes les actualités'):state.section==='saved'?'Articles enregistrés':`Actualités · ${c.name}`;$('list-label').textContent=state.section==='saved'?'Une lecture à votre rythme':state.section==='home'&&state.mode==='short'?'Une information recoupée par rubrique':'Une sélection, pas un déluge';$('range-24h').setAttribute('aria-pressed',String(state.range==='24h'));$('range-7d').setAttribute('aria-pressed',String(state.range==='7d'));$('mode-short').setAttribute('aria-pressed',String(state.mode==='short'));$('mode-all').setAttribute('aria-pressed',String(state.mode==='all'));$('reading-time').textContent=state.mode==='short'?'5 min':'10 min';const result=$('articles');result.replaceChildren();const warning=$('notice');warning.classList.remove('visible');if(state.loading){result.append(empty('Chargement des actualités…','Le briefing va s’afficher automatiquement.'));$('results-count').textContent='Chargement…';$('more-wrap').hidden=true;return}const generated=state.data?.generatedAt;const feedAge=generated?(Date.now()-new Date(generated).getTime())/3600000:Infinity;if(state.error||feedAge>3&&state.data?.count){warning.classList.add('visible');$('notice-text').textContent=state.error?'Impossible de recharger le flux. Les dernières données disponibles restent affichées.':`Dernière mise à jour il y a ${Math.floor(feedAge)} h. GitHub Actions peut parfois actualiser avec du retard.`}const items=articleList();$('results-count').textContent=`${items.length} actualité${items.length>1?'s':''}`;if(!items.length){let title=state.mode==='short'?'Aucune actualité recoupée dans cette sélection':'Aucune actualité dans cette sélection';let message=state.mode==='short'?'Aucune confirmation indépendante n’a été trouvée pour cette période. Essayez « 7 jours », ou « Tout » pour consulter les articles non recoupés, clairement signalés.':'Essayez « 7 jours » ou changez de rubrique.';if(state.section==='saved'){title='Aucun favori pour le moment';message='Utilisez l’icône de signet sur une actualité pour la conserver ici.'}else if(!state.data?.count){title='Le premier briefing n’est pas encore généré';message='Lancez une fois le workflow « Actualiser les actualités » sur GitHub, ou exécutez le script Python en local.'}result.append(empty(title,message));$('more-wrap').hidden=true;return}items.slice(0,state.visible).forEach((a,i)=>result.append(card(a,i)));$('more-wrap').hidden=items.length<=state.visible;if(!resetFilters)return;}
+    function update(resetFilters=true){nav();renderPriority();const c=CATEGORIES.find(c=>c.id===state.section)||CATEGORIES[0];$('hero-title').textContent=c.title;$('hero-description').textContent=c.detail;$('hero-eyebrow').textContent=state.section==='home'?'Votre briefing quotidien':state.section==='saved'?'Vos lectures de côté':`Rubrique / ${c.name}`;$('list-title').textContent=state.section==='home'?(state.mode==='short'?'Les faits recoupés, en bref':'Toutes les actualités'):state.section==='saved'?'Articles enregistrés':`Actualités · ${c.name}`;$('list-label').textContent=state.section==='saved'?'Une lecture à votre rythme':state.section==='home'&&state.mode==='short'?'Une information recoupée par rubrique':'Une sélection, pas un déluge';$('range-24h').setAttribute('aria-pressed',String(state.range==='24h'));$('range-7d').setAttribute('aria-pressed',String(state.range==='7d'));$('mode-short').setAttribute('aria-pressed',String(state.mode==='short'));$('mode-all').setAttribute('aria-pressed',String(state.mode==='all'));$('reading-time').textContent=state.mode==='short'?'5 min':'10 min';const result=$('articles');result.replaceChildren();const warning=$('notice');warning.classList.remove('visible');if(state.loading){result.append(empty('Chargement des actualités…','Le briefing va s’afficher automatiquement.'));$('results-count').textContent='Chargement…';$('more-wrap').hidden=true;return}const generated=state.data?.generatedAt;const feedAge=generated?(Date.now()-new Date(generated).getTime())/3600000:Infinity;if(state.error||feedAge>3&&state.data?.count){warning.classList.add('visible');$('notice-text').textContent=state.error?'Impossible de recharger le flux. Les dernières données disponibles restent affichées.':`Dernière mise à jour il y a ${Math.floor(feedAge)} h. GitHub Actions peut parfois actualiser avec du retard.`}const items=articleList();$('results-count').textContent=`${items.length} actualité${items.length>1?'s':''}`;if(!items.length){let title=state.mode==='short'?'Aucune actualité recoupée dans cette sélection':'Aucune actualité dans cette sélection';let message=state.mode==='short'?'Aucune confirmation indépendante n’a été trouvée pour cette période. Essayez « 7 jours », ou « Tout » pour consulter les articles non recoupés, clairement signalés.':'Essayez « 7 jours » ou changez de rubrique.';if(state.section==='saved'){title='Aucun favori pour le moment';message='Utilisez l’icône de signet sur une actualité pour la conserver ici.'}else if(!state.data?.count){title='Le premier briefing n’est pas encore généré';message='Lancez une fois le workflow « Actualiser les actualités » sur GitHub, ou exécutez le script Python en local.'}result.append(empty(title,message));$('more-wrap').hidden=true;return}items.slice(0,state.visible).forEach((a,i)=>result.append(card(a,i)));$('more-wrap').hidden=items.length<=state.visible;if(!resetFilters)return;}
     async function load(){const seq=++reqCount;state.error=false;try{const res=await fetch('news.json?t='+Date.now(),{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(seq!==reqCount)return;if(!data||typeof data.categories!=='object')throw new Error('Données invalides');state.data=data;const d=data.generatedAt;$('updated-label').textContent=d?`Mis à jour : ${labelDate(d)}`:'Premier chargement à effectuer.';$('sidebar-status').textContent=d?`Flux du ${labelDate(d)}`:'En attente du premier flux';}catch(err){state.error=true;console.warn('Flux inaccessible :',err)}finally{if(seq===reqCount){state.loading=false;update()}}}
+    $('priority-button').addEventListener('click',()=>{
+      state.section='golfe';state.range='7d';state.visible=8;state.query='';
+      $('search-input').value='';update();
+      document.getElementById('list-title').scrollIntoView({behavior:'smooth',block:'start'});
+    });
     $('brand-home').addEventListener('click',e=>{e.preventDefault();state.section='home';state.visible=8;state.query='';$('search-input').value='';update()});
     $('search-input').addEventListener('input',e=>{state.query=e.target.value;state.visible=8;update()});
     $('range-24h').addEventListener('click',()=>{state.range='24h';state.visible=8;update()});
