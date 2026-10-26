@@ -32,6 +32,14 @@ class SummaryTests(unittest.TestCase):
             "_sourceText": "Le MASI a progressé de 0,59 % ce lundi, tiré par plusieurs valeurs bancaires.",
             "score": 11,
             "publishedAt": "2026-10-26T10:00:00Z",
+            "verification": {
+                "status": "corroborated",
+                "sourceCount": 2,
+                "sources": [
+                    {"name": "Hespress", "title": "La Bourse de Casablanca ouvre en hausse"},
+                    {"name": "Medias24", "title": "Casablanca : la Bourse ouvre en hausse"},
+                ],
+            },
         }
         self.buckets = {"eco-maroc": [self.article]}
 
