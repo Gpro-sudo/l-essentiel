@@ -272,7 +272,53 @@
     const $ = id => document.getElementById(id);
     const svg = (name, filled = false) => `<svg viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
     const getSaved = () => {try{let a=JSON.parse(localStorage.getItem('essentiel-saved')||'[]');return Array.isArray(a)?a.filter(x=>x&&x.id&&x.url):[]}catch{return []}};
-    const state = {section:'home',range:'24h',mode:'short',query:'',visible:8,data:null,saved:getSaved(),loading:true,error:false};
+    const getPrefs=()=>{try{const o=JSON.parse(localStorage.getItem('essentiel-interests-v1')||'{}');return o&&typeof o==='object'&&!Array.isArray(o)?o:{}}catch{return {}}};
+    const state = {section:'home',range:'24h',mode:'short',query:'',visible:8,data:null,saved:getSaved(),preferences:getPrefs(),loading:true,error:false};
+    const normTopic=s=>(s||'').toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+    function prefFor(a){
+      const key=a.topicKey||('article-'+a.id);
+      const explicit=state.preferences[key];
+      if(explicit)return explicit;
+      const text=normTopic([a.title,a.summary].join(' '));
+      return Object.values(state.preferences).find(p=>p&&p.query&&p.mode==='yes'&&normTopic(p.query).split(' ').filter(Boolean).every(t=>text.includes(t)))||null;
+    }
+    function prefMode(a){return prefFor(a)?.mode||''}
+    function followed(a){return prefMode(a)==='yes'}
+    function storePrefs(){try{localStorage.setItem('essentiel-interests-v1',JSON.stringify(state.preferences))}catch{}}
+    function setPreference(key,label,mode,query){
+      if(!key)return;
+      const previous=state.preferences[key];
+      if(previous?.mode===mode)delete state.preferences[key];
+      else state.preferences[key]={label:String(label||key).slice(0,75),mode,query:query||'',updatedAt:new Date().toISOString()};
+      storePrefs();update();
+    }
+    function interestBoost(a){return followed(a)?8:0}
+    function renderInterests(){
+      const panel=$('interest-tags');panel.replaceChildren();
+      const prefs=Object.entries(state.preferences).filter(([key,p])=>p&&['yes','no'].includes(p.mode)).sort((x,y)=>x[1].mode.localeCompare(y[1].mode));
+      for(const [key,p] of prefs){
+        const pill=document.createElement('span');pill.className='interest-tag'+(p.mode==='no'?' ignored':'');
+        const label=document.createElement('span');label.textContent=(p.mode==='yes'?'✓ ':'✕ ')+p.label;
+        const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.title='Supprimer cette préférence';
+        remove.setAttribute('aria-label','Retirer la préférence '+p.label);
+        remove.addEventListener('click',()=>{delete state.preferences[key];storePrefs();update()});
+        pill.append(label,remove);panel.append(pill);
+      }
+      $('interest-info').textContent=prefs.length?prefs.length+' préférence(s) enregistrée(s). Une préférence suit un thème ; elle ne garantit pas un nouveau résultat.':'Utilisez « Ça m’intéresse » ou « Pas pour moi » sur une actualité. Vous pouvez aussi ajouter un thème manuellement.';
+    }
+    function groupStories(items){
+      const groups=new Map();
+      for(const a of items){
+        const key=a.storyKey||a.id;
+        if(!groups.has(key))groups.set(key,[]);
+        groups.get(key).push(a);
+      }
+      const score=a=>(a.summaryType==='ai'?5:0)+(a.verification?.status==='corroborated'?6:0)+(/reuters/i.test(a.source||'')?4:0);
+      return [...groups.values()].map(group=>{
+        group.sort((a,b)=>score(b)-score(a)||new Date(b.publishedAt)-new Date(a.publishedAt));
+        return {...group[0],groupedCount:group.length};
+      });
+    }
     let reqCount=0;
     const fmtDate = new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     $('now-label').textContent = fmtDate.format(new Date());
@@ -280,8 +326,8 @@
     function age(date){const t=new Date(date).getTime();if(!Number.isFinite(t))return 'date inconnue';const h=Math.max(0,(Date.now()-t)/3600000);return h<1?`il y a ${Math.max(1,Math.floor(h*60))} min`:h<24?`il y a ${Math.floor(h)} h`:`il y a ${Math.floor(h/24)} j`}
     function isValidUrl(url){try{return ['https:','http:'].includes(new URL(url).protocol)}catch{return false}}
     function allNews(){const c=state.data?.categories||{};return Object.values(c).flat().filter(a=>a&&a.id&&a.title&&a.url&&isValidUrl(a.url))}
-    function countFor(key){if(key==='saved')return state.saved.length;if(key==='home')return homeNews().length;const arr=state.data?.categories?.[key]||[];return state.mode==='short'?arr.filter(a=>a.verification?.status==='corroborated').length:arr.length}
-    function nav(){const elem=$('nav');elem.replaceChildren();for(const c of CATEGORIES){const b=document.createElement('button');b.type='button';b.setAttribute('aria-current',state.section===c.id?'page':'false');b.innerHTML=svg(c.icon);const t=document.createElement('span');t.textContent=c.name;const n=document.createElement('span');n.className='count';n.textContent=state.loading?'–':countFor(c.id);b.append(t,n);b.addEventListener('click',()=>{state.section=c.id;state.visible=8;state.query='';$('search-input').value='';update();window.scrollTo({top:0,behavior:'smooth'})});elem.append(b)}}
+    function countFor(key){if(key==='saved')return state.saved.length;if(key==='interests')return Object.values(state.preferences).filter(p=>p?.mode==='yes').length;if(key==='home')return homeNews().length;const arr=state.data?.categories?.[key]||[];return state.mode==='short'?arr.filter(a=>a.verification?.status==='corroborated'&&prefMode(a)!=='no').length:arr.length}
+    function nav(){const elem=$('nav');elem.replaceChildren();for(const c of CATEGORIES){const b=document.createElement('button');b.type='button';b.setAttribute('aria-current',state.section===c.id?'page':'false');b.innerHTML=svg(c.icon);const t=document.createElement('span');t.textContent=c.name;const n=document.createElement('span');n.className='count';n.textContent=state.loading?'–':countFor(c.id);b.append(t,n);b.addEventListener('click',()=>{state.section=c.id;if(c.id==='interests')state.range='7d';state.visible=8;state.query='';$('search-input').value='';update();window.scrollTo({top:0,behavior:'smooth'})});elem.append(b)}}
     function unique(items){const seen=new Set();return items.filter(a=>{if(seen.has(a.id))return false;seen.add(a.id);return true})}
     function homeNews(){
       const keys=CATEGORIES.filter(c=>!['home','saved'].includes(c.id)).map(c=>c.id);
@@ -298,7 +344,7 @@
       // Aucune rubrique n'est remplie artificiellement.
       const briefing=[];
       for(const category of keys){
-        const best=fresh.filter(a=>a.category===category&&(a.score||0)>=6&&a.verification?.status==='corroborated').sort(priority)[0];
+        const best=fresh.filter(a=>a.category===category&&(a.score||0)>=6&&a.verification?.status==='corroborated'&&prefMode(a)!=='no').sort((a,b)=>(b.score||0)+interestBoost(b)-((a.score||0)+interestBoost(a))||new Date(b.publishedAt)-new Date(a.publishedAt))[0];
         if(best)briefing.push(best);
       }
       return unique(briefing);
@@ -328,9 +374,10 @@
       }
     }
     function articleList(){
-      let items=state.section==='saved'?state.saved.slice():state.section==='home'?homeNews():(state.data?.categories?.[state.section]||[]).slice();
+      let items=state.section==='saved'?state.saved.slice():state.section==='interests'?allNews().filter(followed):state.section==='home'?homeNews():(state.data?.categories?.[state.section]||[]).slice();
       items=unique(items);
       if(state.section!=='saved'){
+        items=items.filter(a=>prefMode(a)!=='no');
         const span=state.range==='24h'?24:168;
         const now=Date.now();
         items=items.filter(a=>{const t=new Date(a.publishedAt).getTime();return Number.isFinite(t)&&t<=now+3600000&&now-t<=span*3600000;});
@@ -342,7 +389,10 @@
       if(state.section==='saved')items.sort((a,b)=>new Date(b.savedAt||b.publishedAt)-new Date(a.savedAt||a.publishedAt));
       else if(state.mode==='short'&&state.section!=='home')items.sort((a,b)=>(b.score||0)-(a.score||0)||new Date(b.publishedAt)-new Date(a.publishedAt));
       else if(state.section!=='home')items.sort((a,b)=>new Date(b.publishedAt)-new Date(a.publishedAt));
-      if(state.mode==='short'&&state.section!=='saved'){items=items.filter(a=>a.verification?.status==='corroborated');items=items.slice(0,state.section==='home'?7:8)}
+      if(state.mode==='short'&&!['saved','interests'].includes(state.section))items=items.filter(a=>a.verification?.status==='corroborated');
+      if(state.section!=='saved')items=groupStories(items);
+      if(state.section==='interests')items.sort((a,b)=>interestBoost(b)-interestBoost(a)||new Date(b.publishedAt)-new Date(a.publishedAt));
+      if(state.mode==='short'&&!['saved','interests'].includes(state.section))items=items.slice(0,state.section==='home'?9:8);
       return items;
     }
     function save(a){const i=state.saved.findIndex(x=>x.id===a.id);if(i>=0)state.saved.splice(i,1);else state.saved.unshift({...a,savedAt:new Date().toISOString()});try{localStorage.setItem('essentiel-saved',JSON.stringify(state.saved))}catch{}update(false)}
@@ -359,7 +409,7 @@
     }
     el.append(head,heading,p,verification,bottom);return el}
     function empty(title,message){const box=document.createElement('div');box.className='empty';box.innerHTML=svg('sparkles');const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;box.append(h,p);return box}
-    function update(resetFilters=true){nav();renderPriority();const c=CATEGORIES.find(c=>c.id===state.section)||CATEGORIES[0];$('hero-title').textContent=c.title;$('hero-description').textContent=c.detail;$('hero-eyebrow').textContent=state.section==='home'?'Votre briefing quotidien':state.section==='saved'?'Vos lectures de côté':`Rubrique / ${c.name}`;$('list-title').textContent=state.section==='home'?(state.mode==='short'?'Les faits recoupés, en bref':'Toutes les actualités'):state.section==='saved'?'Articles enregistrés':`Actualités · ${c.name}`;$('list-label').textContent=state.section==='saved'?'Une lecture à votre rythme':state.section==='home'&&state.mode==='short'?'Une information recoupée par rubrique':'Une sélection, pas un déluge';$('range-24h').setAttribute('aria-pressed',String(state.range==='24h'));$('range-7d').setAttribute('aria-pressed',String(state.range==='7d'));$('mode-short').setAttribute('aria-pressed',String(state.mode==='short'));$('mode-all').setAttribute('aria-pressed',String(state.mode==='all'));$('reading-time').textContent=state.mode==='short'?'5 min':'10 min';const result=$('articles');result.replaceChildren();const warning=$('notice');warning.classList.remove('visible');if(state.loading){result.append(empty('Chargement des actualités…','Le briefing va s’afficher automatiquement.'));$('results-count').textContent='Chargement…';$('more-wrap').hidden=true;return}const generated=state.data?.generatedAt;const feedAge=generated?(Date.now()-new Date(generated).getTime())/3600000:Infinity;if(state.error||feedAge>3&&state.data?.count){warning.classList.add('visible');$('notice-text').textContent=state.error?'Impossible de recharger le flux. Les dernières données disponibles restent affichées.':`Dernière mise à jour il y a ${Math.floor(feedAge)} h. GitHub Actions peut parfois actualiser avec du retard.`}const items=articleList();$('results-count').textContent=`${items.length} actualité${items.length>1?'s':''}`;if(!items.length){let title=state.mode==='short'?'Aucune actualité recoupée dans cette sélection':'Aucune actualité dans cette sélection';let message=state.mode==='short'?'Aucune confirmation indépendante n’a été trouvée pour cette période. Essayez « 7 jours », ou « Tout » pour consulter les articles non recoupés, clairement signalés.':'Essayez « 7 jours » ou changez de rubrique.';if(state.section==='saved'){title='Aucun favori pour le moment';message='Utilisez l’icône de signet sur une actualité pour la conserver ici.'}else if(!state.data?.count){title='Le premier briefing n’est pas encore généré';message='Lancez une fois le workflow « Actualiser les actualités » sur GitHub, ou exécutez le script Python en local.'}result.append(empty(title,message));$('more-wrap').hidden=true;return}items.slice(0,state.visible).forEach((a,i)=>result.append(card(a,i)));$('more-wrap').hidden=items.length<=state.visible;if(!resetFilters)return;}
+    function update(resetFilters=true){nav();renderPriority();renderInterests();const c=CATEGORIES.find(c=>c.id===state.section)||CATEGORIES[0];$('hero-title').textContent=c.title;$('hero-description').textContent=c.detail;$('hero-eyebrow').textContent=state.section==='home'?'Votre briefing quotidien':state.section==='saved'?'Vos lectures de côté':state.section==='interests'?'Vos thèmes suivis':`Rubrique / ${c.name}`;$('list-title').textContent=state.section==='home'?(state.mode==='short'?'Les faits recoupés, en bref':'Toutes les actualités'):state.section==='saved'?'Articles enregistrés':state.section==='interests'?'Actualités de mes sujets':`Actualités · ${c.name}`;$('list-label').textContent=state.section==='saved'?'Une lecture à votre rythme':state.section==='interests'?'Priorité à vos intérêts':state.section==='home'&&state.mode==='short'?'Une information recoupée par rubrique':'Une sélection, pas un déluge';$('range-24h').setAttribute('aria-pressed',String(state.range==='24h'));$('range-7d').setAttribute('aria-pressed',String(state.range==='7d'));$('mode-short').setAttribute('aria-pressed',String(state.mode==='short'));$('mode-all').setAttribute('aria-pressed',String(state.mode==='all'));$('reading-time').textContent=state.mode==='short'?'5 min':'10 min';const result=$('articles');result.replaceChildren();const warning=$('notice');warning.classList.remove('visible');if(state.loading){result.append(empty('Chargement des actualités…','Le briefing va s’afficher automatiquement.'));$('results-count').textContent='Chargement…';$('more-wrap').hidden=true;return}const generated=state.data?.generatedAt;const feedAge=generated?(Date.now()-new Date(generated).getTime())/3600000:Infinity;if(state.error||feedAge>3&&state.data?.count){warning.classList.add('visible');$('notice-text').textContent=state.error?'Impossible de recharger le flux. Les dernières données disponibles restent affichées.':`Dernière mise à jour il y a ${Math.floor(feedAge)} h. GitHub Actions peut parfois actualiser avec du retard.`}const items=articleList();$('results-count').textContent=`${items.length} actualité${items.length>1?'s':''}`;if(!items.length){let title=state.mode==='short'?'Aucune actualité recoupée dans cette sélection':'Aucune actualité dans cette sélection';let message=state.mode==='short'?'Aucune confirmation indépendante n’a été trouvée pour cette période. Essayez « 7 jours », ou « Tout » pour consulter les articles non recoupés, clairement signalés.':'Essayez « 7 jours » ou changez de rubrique.';if(state.section==='saved'){title='Aucun favori pour le moment';message='Utilisez l’icône de signet sur une actualité pour la conserver ici.'}else if(state.section==='interests'){title='Pas encore d’actualité sur vos sujets';message='Suivez un thème au-dessus, ou cliquez sur « Ça m’intéresse » sous une actualité. Essayez aussi « 7 jours ».'}else if(!state.data?.count){title='Le premier briefing n’est pas encore généré';message='Lancez une fois le workflow « Actualiser les actualités » sur GitHub, ou exécutez le script Python en local.'}result.append(empty(title,message));$('more-wrap').hidden=true;return}items.slice(0,state.visible).forEach((a,i)=>result.append(card(a,i)));$('more-wrap').hidden=items.length<=state.visible;if(!resetFilters)return;}
     async function load(){const seq=++reqCount;state.error=false;try{const res=await fetch('news.json?t='+Date.now(),{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();if(seq!==reqCount)return;if(!data||typeof data.categories!=='object')throw new Error('Données invalides');state.data=data;const d=data.generatedAt;$('updated-label').textContent=d?`Mis à jour : ${labelDate(d)}`:'Premier chargement à effectuer.';$('sidebar-status').textContent=d?`Flux du ${labelDate(d)}`:'En attente du premier flux';}catch(err){state.error=true;console.warn('Flux inaccessible :',err)}finally{if(seq===reqCount){state.loading=false;update()}}}
     $('priority-button').addEventListener('click',()=>{
       state.section='golfe';state.range='7d';state.visible=8;state.query='';
@@ -367,6 +417,16 @@
       document.getElementById('list-title').scrollIntoView({behavior:'smooth',block:'start'});
     });
     $('brand-home').addEventListener('click',e=>{e.preventDefault();state.section='home';state.visible=8;state.query='';$('search-input').value='';update()});
+    $('interest-form').addEventListener('submit',e=>{
+      e.preventDefault();
+      const value=$('interest-input').value.trim();
+      if(!value)return;
+      const query=normTopic(value);
+      if(query.length<3)return;
+      const key='custom-'+query.replace(/ /g,'-');
+      state.preferences[key]={label:value,mode:'yes',query:value,updatedAt:new Date().toISOString()};
+      storePrefs();$('interest-input').value='';update();
+    });
     $('search-input').addEventListener('input',e=>{state.query=e.target.value;state.visible=8;update()});
     $('range-24h').addEventListener('click',()=>{state.range='24h';state.visible=8;update()});
     $('range-7d').addEventListener('click',()=>{state.range='7d';state.visible=8;update()});
