@@ -24,6 +24,7 @@ from scripts.priority_gulf import targeted_feeds, gulf_relevant, spotlight
 from scripts.interests import interest_feeds, classify_story, automotive_related
 from scripts.headline_policy import sensational, neutral_title_from_excerpt
 from scripts.editorial_facts import apply_primary_correction
+from scripts.article_content import hydrate_articles
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'news.json'
@@ -204,11 +205,13 @@ def fetch_feed(feed):
             published = parse_time(child_text(item, 'pubDate', 'date', '{http://www.w3.org/2005/Atom}published', '{http://www.w3.org/2005/Atom}updated', '{http://purl.org/dc/elements/1.1/}date'))
             if not published or published > NOW + dt.timedelta(hours=1) or published < NOW - dt.timedelta(days=MAX_AGE_DAYS):
                 continue
-            # Contenu: préférence pour la description courte de l'éditeur (pas le corps complet).
+            # Certains éditeurs mettent leur article complet dans content:encoded.
+            # Il ne sera utilisé qu'en contexte éphémère, jamais republié.
             description = child_text(item, 'description', '{http://www.w3.org/2005/Atom}summary')
+            full_rss = child_text(item, '{http://purl.org/rss/1.0/modules/content/}encoded', '{http://www.w3.org/2005/Atom}content')
             if not description:
-                description = child_text(item, '{http://purl.org/rss/1.0/modules/content/}encoded', '{http://www.w3.org/2005/Atom}content')
-            summary = concise(description)
+                description = full_rss
+            summary = concise(description, max_chars=300)
             # Pas de pseudo-résumés inventés: si rien n'est fourni, on ignore l'entrée.
             if not summary or not informative_summary(title, summary):
                 continue
@@ -245,7 +248,8 @@ def fetch_feed(feed):
                 'category': category,
                 'title': title,
                 'summary': summary,
-                '_sourceText': clean_text(description)[:1200],
+                '_sourceText': clean_text(description)[:1400],
+                '_embeddedArticle': clean_text(full_rss)[:4500] if full_rss else '',
                 'source': publisher,
                 'publishedAt': published_iso,
                 'url': url,
@@ -336,6 +340,9 @@ def main():
     print(f"Recoupement : {verification['corroborated']}/{verification['total']} actualités, {verification['checked']} recherches.")
     # Réutiliser d'abord les synthèses fraîches ; appeler l'IA uniquement pour
     # les sujets nouveaux afin de respecter le quota des modèles gratuits.
+    # Lecture autorisée des articles disponibles, pour faire de vraies
+    # synthèses et non récrire simplement le chapeau.
+    hydrate_articles(buckets, NOW)
     cached_ai = restore_recent_summaries(buckets, NOW)
     fresh_ai = summarize_buckets(buckets, NOW)
     ai_count = fresh_ai + cached_ai
@@ -363,6 +370,8 @@ def main():
             if article.get("displayTitle"):
                 normalized_count += 1
             article.pop("_sourceText", None)
+            article.pop("_embeddedArticle", None)
+            article.pop("_articleText", None)
     print(f"Titrage : {normalized_count} titres descriptifs ; {caution_count} titres originaux à vérifier ; {primary_count} corrections avec document primaire.")
     # Conserver un contexte historique clairement daté, sans le présenter
     # comme une nouvelle fraîche. Ajouter si possible un fait récent recoupé.
@@ -376,7 +385,7 @@ def main():
     priority = spotlight(live_gulf[0] if live_gulf else None)
     result = {
         'priority': priority,
-        'editorialVersion': 3,
+        'editorialVersion': 4,
         'generatedAt': NOW.isoformat().replace('+00:00', 'Z'),
         'count': total,
         'aiSummaryCount': ai_count,
