@@ -121,7 +121,6 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
     payload = json.dumps({
         "model": model,
         "temperature": 0.1,
-        "reasoning": {"enabled": False},
         "response_format": {"type": "json_object"},
         "max_tokens": 2000,
         "messages": [
@@ -170,6 +169,8 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
         if not choices:
             raise ValueError("Réponse API sans choix (choices vide)")
         content = choices[0].get("message", {}).get("content", "")
+        if isinstance(content, list):
+            content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
         if not isinstance(content, str):
             raise ValueError("Format de réponse inattendu")
         response_items = parse_response(content)
