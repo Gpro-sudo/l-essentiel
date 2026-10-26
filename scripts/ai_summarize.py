@@ -114,7 +114,7 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
     payload = json.dumps({
         "model": model,
         "temperature": 0.1,
-        "max_tokens": 1100,
+        "max_tokens": 2000,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": json.dumps(contexts, ensure_ascii=False)},
@@ -134,15 +134,25 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
     try:
         with urllib.request.urlopen(req, timeout=45) as resp:
             result = json.loads(resp.read(250_000))
+        if not isinstance(result, dict):
+            raise ValueError("Réponse API non structurée")
+        if result.get("error"):
+            api_error = result["error"]
+            if isinstance(api_error, dict):
+                code = str(api_error.get("code", "inconnu"))[:24]
+                message = str(api_error.get("message", "Erreur OpenRouter"))[:130]
+                raise ValueError(f"API OpenRouter code {code}: {message}")
+            raise ValueError("API OpenRouter a retourné une erreur")
         choices = result.get("choices") or []
         if not choices:
-            raise ValueError("Réponse sans choix")
+            raise ValueError("Réponse API sans choix (choices vide)")
         content = choices[0].get("message", {}).get("content", "")
         if not isinstance(content, str):
             raise ValueError("Format de réponse inattendu")
         response_items = parse_response(content)
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
-        print(f"Synthèse IA non disponible ({type(exc).__name__}); résumés RSS conservés.", file=sys.stderr)
+        detail = str(exc).replace(key, "[SECRET]").replace("\n", " ")[:160]
+        print(f"Synthèse IA non disponible ({type(exc).__name__}: {detail}); résumés RSS conservés.", file=sys.stderr)
         return 0
 
     refs = {a["id"]: a for a in articles}
