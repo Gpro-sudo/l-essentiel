@@ -17,6 +17,8 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
+from scripts.ai_summarize import summarize_buckets
+
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'news.json'
 NOW = dt.datetime.now(dt.timezone.utc)
@@ -216,6 +218,7 @@ def fetch_feed(feed):
                 'category': category,
                 'title': title,
                 'summary': summary,
+                '_sourceText': clean_text(description)[:1200],
                 'source': feed['name'],
                 'publishedAt': published_iso,
                 'url': url,
@@ -302,9 +305,15 @@ def main():
     if total == 0:
         print('Échec : aucun article collecté. On ne remplace pas le site par un flux vide.', file=sys.stderr)
         return 1
+    ai_count = summarize_buckets(buckets, NOW)
+    # Les textes sources transmis à l'IA ne doivent pas être publiés dans le JSON.
+    for group in buckets.values():
+        for article in group:
+            article.pop('_sourceText', None)
     result = {
         'generatedAt': NOW.isoformat().replace('+00:00', 'Z'),
         'count': total,
+        'aiSummaryCount': ai_count,
         'categories': buckets,
         'feeds': reports,
     }
