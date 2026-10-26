@@ -36,6 +36,19 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'openrouter/free' }}
         run: python -m scripts.update_news
+      - name: Bilan des actualités et des synthèses IA
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads(Path("news.json").read_text(encoding="utf-8"))
+          total = data.get("count", 0)
+          ai = data.get("aiSummaryCount", 0)
+          print(f"Actualités recueillies : {total}. Synthèses IA : {ai}.")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
+              report.write(f"### Bilan de L'Essentiel\n\n- Actualités recueillies : **{total}**\n- Synthèses IA : **{ai}**\n")
+          PY
       - name: Préparer le site
         run: |
           mkdir -p dist
