@@ -66,7 +66,7 @@ def classify_story(title: str, summary: str, category: str, article_id: str) -> 
 
 def interest_feeds() -> list[dict]:
     queries = [
-        'site:reuters.com/business/autos-transportation/ when:3d',
+        'site:reuters.com (Tesla OR BYD OR Audi OR Volkswagen OR robotaxi) when:7d',
         '(Tesla SpaceX) (fusion OR rapprochement OR merger) when:3d',
         '(voitures OR constructeurs OR automobile) (BYD OR Renault OR Tesla OR Volkswagen) when:3d',
     ]
