@@ -113,7 +113,10 @@
     .article h3{margin:0 0 9px;font-size:17px;line-height:1.38;font-weight:780;letter-spacing:-.035em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden}
     .article h3 a{text-decoration:none}
     .article h3 a:hover{color:var(--accent)}
-    .article p{margin:0 0 12px;color:var(--muted);font-size:13px;line-height:1.55;min-height:40px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;line-clamp:3}
+    .article p{margin:0 0 9px;color:var(--muted);font-size:13px;line-height:1.6;min-height:40px;white-space:normal;overflow-wrap:break-word}
+    .summary-provenance{font-size:10px;line-height:1.5;color:var(--muted);margin-bottom:11px}
+    .summary-provenance.article{color:var(--accent);font-weight:720}
+    .summary-provenance.limited{font-weight:650}
     .verification-note{font-size:11px;color:var(--muted);margin:0 0 13px;line-height:1.5;font-weight:550}
     .verification-note.recouped{color:var(--accent)}
     .article-bottom{margin-top:auto;border-top:1px solid var(--line);padding-top:13px;display:flex;gap:9px;align-items:center;justify-content:space-between;font-size:11px;color:var(--muted)}
@@ -449,7 +452,21 @@
       caution.title='Le titre d’origine emploie une formulation potentiellement sensationnaliste.';
       head.append(caution);
     }
-    if(a.summaryType==='ai'){const ai=document.createElement('span');ai.className='ai-note';ai.textContent='Synthèse IA';ai.title='Synthèse à partir des contenus RSS fournis par les éditeurs';head.append(ai)}head.append(b);const heading=document.createElement('h3');heading.title=a.displayTitle&&a.displayTitle!==a.title?'Titre original du média : '+a.title:a.title;const titleLink=document.createElement('a');titleLink.href=a.url;titleLink.target='_blank';titleLink.rel='noopener noreferrer';titleLink.textContent=a.displayTitle||a.title;heading.append(titleLink);const p=document.createElement('p');p.textContent=a.summary;const bottom=document.createElement('div');bottom.className='article-bottom';const left=document.createElement('div');left.className='left';const source=document.createElement('span');source.className='source';source.textContent=a.source||'Source';const sep=document.createElement('span');sep.textContent='·';const t=document.createElement('time');t.dateTime=a.publishedAt||'';t.textContent=age(a.publishedAt);t.title=labelDate(a.publishedAt);left.append(source,sep,t);const link=document.createElement('a');link.className='read';link.href=a.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source ';link.insertAdjacentHTML('beforeend',svg('arrow'));bottom.append(left,link);
+    if(a.summaryType==='ai'){const ai=document.createElement('span');ai.className='ai-note';ai.textContent='Synthèse IA';ai.title='Synthèse à partir des contenus RSS fournis par les éditeurs';head.append(ai)}head.append(b);const heading=document.createElement('h3');heading.title=a.displayTitle&&a.displayTitle!==a.title?'Titre original du média : '+a.title:a.title;const titleLink=document.createElement('a');titleLink.href=a.url;titleLink.target='_blank';titleLink.rel='noopener noreferrer';titleLink.textContent=a.displayTitle||a.title;heading.append(titleLink);const p=document.createElement('p');p.textContent=a.summary;
+    const summaryMeta=document.createElement('div');summaryMeta.className='summary-provenance';
+    if(a.summaryType==='primary'){
+      summaryMeta.classList.add('article');
+      summaryMeta.textContent='Synthèse fondée sur un document primaire · déclarations attribuées';
+    }else if(a.summaryType==='ai' && a.summaryBasis==='article'){
+      summaryMeta.classList.add('article');
+      summaryMeta.textContent='Résumé de l’article consultable · synthèse IA';
+    }else if(a.summaryType==='ai'){
+      summaryMeta.textContent='Synthèse IA basée sur le seul extrait RSS · détails limités';
+    }else{
+      summaryMeta.classList.add('limited');
+      summaryMeta.textContent='Aperçu RSS uniquement · article complet non résumé';
+    }
+    const bottom=document.createElement('div');bottom.className='article-bottom';const left=document.createElement('div');left.className='left';const source=document.createElement('span');source.className='source';source.textContent=a.source||'Source';const sep=document.createElement('span');sep.textContent='·';const t=document.createElement('time');t.dateTime=a.publishedAt||'';t.textContent=age(a.publishedAt);t.title=labelDate(a.publishedAt);left.append(source,sep,t);const link=document.createElement('a');link.className='read';link.href=a.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Source ';link.insertAdjacentHTML('beforeend',svg('arrow'));bottom.append(left,link);
     if(supportedPrimary(a)){
       const primary=document.createElement('a');
       primary.className='read';
@@ -490,7 +507,7 @@
     const note=document.createElement('span');note.className='topic-note';note.textContent='Sujet : '+topic;feedback.append(note);
     const related=document.createElement('div');related.className='related-count';
     related.textContent=(a.groupedCount||1)>1?String(a.groupedCount)+' articles regroupés sur cette histoire':'';
-    el.append(head,heading,p,related,feedback,verification,bottom);return el}
+    el.append(head,heading,p,summaryMeta,related,feedback,verification,bottom);return el}
     function empty(title,message){const box=document.createElement('div');box.className='empty';box.innerHTML=svg('sparkles');const h=document.createElement('h3');h.textContent=title;const p=document.createElement('p');p.textContent=message;box.append(h,p);return box}
     function update(resetFilters=true){
       nav();renderPriority();renderInterests();
@@ -512,11 +529,11 @@
         // dont les noms de médias et les titres n'étaient pas fiables.
         let data=null;
         for(let attempt=0;attempt<2;attempt++){
-          const url='news.json?editorial=3&t='+Date.now()+'&attempt='+attempt;
+          const url='news.json?editorial=4&t='+Date.now()+'&attempt='+attempt;
           const res=await fetch(url,{cache:'no-store'});
           if(!res.ok)throw new Error('HTTP '+res.status);
           data=await res.json();
-          if(data?.editorialVersion>=3)break;
+          if(data?.editorialVersion>=4)break;
           data=null;
         }
         if(seq!==reqCount)return;
