@@ -31,12 +31,22 @@ artificielle high tech vers environ comment pourquoi politique etats pays grand
 """.split())
 # Même propriétaire / groupe éditorial, donc pas de fausse corroboration.
 GROUPS = {
-    "rfi": "france-medias-monde", "france 24": "france-medias-monde",
-    "france24": "france-medias-monde",
+    # Les noms fournis par les flux RSS et Google Actualités ne sont pas stables.
+    # Une variante de marque / de domaine n'est jamais un second média.
+    "rfi": "france-medias-monde", "france24": "france-medias-monde",
+    "france 24": "france-medias-monde",
     "franceinfo": "franceinfo", "france info": "franceinfo",
-    "01net": "01net", "numerama": "numerama", "clubic": "clubic",
+    "01net": "01net", "01 net": "01net",
+    "bdm": "blogdumoderateur", "blog du moderateur": "blogdumoderateur",
+    "blogdumoderateur": "blogdumoderateur",
+    "numerama": "numerama", "clubic": "clubic",
     "hespress fr": "hespress", "hespress": "hespress",
-    "le courrier de l'atlas": "courrier-atlas",
+    "le courrier de latlas": "courrier-atlas",
+    "le courrier de l atlas": "courrier-atlas",
+    "reuters": "reuters", "ap": "associated-press",
+    "associated press": "associated-press", "afp": "afp",
+    "agence france presse": "afp",
+    "le monde": "lemonde", "lemonde": "lemonde",
 }
 STEPS = {
     "adoption": r"\b(adopte|adoption|approuve|approbation|vote|votee|promulgue)\b",
@@ -67,8 +77,20 @@ def keywords(text: str) -> set[str]:
 
 
 def owner(source: str) -> str:
-    normalized = re.sub(r"[^a-z0-9 ]", "", norm(source))
-    return GROUPS.get(normalized, normalized.strip())
+    """Identifiant de rédaction stable entre nom de marque, acronyme et domaine.
+
+    Ne pas traiter 01net.com ou BDM comme de nouveaux organes de presse.
+    L'éditeur final compte, jamais le nom d'un agrégateur RSS.
+    """
+    value = norm(source).strip().lower()
+    value = re.sub(r"^https?://", "", value)
+    value = re.sub(r"^www\.", "", value)
+    value = re.sub(r"\.(?:com|fr|org|net|ma|co\.uk|info)(?:/.*)?$", "", value)
+    value = value.replace("-", " ").replace("_", " ")
+    normalized = re.sub(r"[^a-z0-9 ]", " ", value)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    compact = normalized.replace(" ", "")
+    return GROUPS.get(normalized, GROUPS.get(compact, compact))
 
 
 def actions(text: str) -> set[str]:
