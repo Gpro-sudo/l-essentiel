@@ -55,7 +55,11 @@ BAD_STATES = frozenset({frozenset(("adoption", "projet")), frozenset(("adoption"
 
 def norm(text: str) -> str:
     chars = unicodedata.normalize("NFKD", html.unescape(text or "").casefold())
-    return "".join(c for c in chars if not unicodedata.combining(c))
+    result = "".join(c for c in chars if not unicodedata.combining(c))
+    result = re.sub(r"\b(?:rd[ .-]*congo|republique democratique du congo)\b", "rdc", result)
+    result = re.sub(r"\b(adopte|adoptee|adoptes|adoptees|adoption|adopter)\b", "adoption", result)
+    result = re.sub(r"\b(reelu|reelue|reelection)\b", "reelection", result)
+    return result
 
 
 def keywords(text: str) -> set[str]:
