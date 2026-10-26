@@ -36,6 +36,20 @@ class VerificationTests(unittest.TestCase):
         second = article("c", "RFI", self.a["title"])
         self.assertEqual(len(corroborate(self.a, [self.a, second], [])), 1)
 
+    def test_01net_and_01net_dot_com_same_publisher(self):
+        self.assertEqual(owner("01net"), owner("01net.com"))
+        self.assertEqual(owner("www.01net.com"), owner("01net"))
+        original = article("m1", "01net", "OpenAI change ses règles de sécurité pendant ses entraînements")
+        duplicate = article("m2", "01net.com", "OpenAI change ses règles de sécurité pendant ses entraînements")
+        self.assertEqual(len(corroborate(original, [original, duplicate], [])), 1)
+
+    def test_bdm_and_blog_du_moderateur_same_publisher(self):
+        self.assertEqual(owner("BDM"), owner("Blog du Modérateur"))
+        self.assertEqual(owner("blogdumoderateur.com"), owner("Blog du Modérateur"))
+        original = article("m1", "Blog du Modérateur", "Des mathématiciens parlent des preuves formelles face à l'IA")
+        duplicate = article("m2", "BDM", "Des mathématiciens parlent des preuves formelles face à l'IA")
+        self.assertEqual(len(corroborate(original, [original, duplicate], [])), 1)
+
     def test_two_distinct_outlets_can_corroborate(self):
         matches = corroborate(self.a, [self.a, self.b], [])
         self.assertEqual(len(matches), 2)
