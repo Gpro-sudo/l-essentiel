@@ -114,6 +114,8 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
     payload = json.dumps({
         "model": model,
         "temperature": 0.1,
+        "reasoning": {"enabled": False},
+        "response_format": {"type": "json_object"},
         "max_tokens": 2000,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
