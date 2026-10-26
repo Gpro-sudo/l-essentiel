@@ -53,6 +53,32 @@ AI_WORDS = re.compile(r'\b(?:intelligence artificielle|\bIA\b|\bAI\b|ChatGPT|Ope
 GARBAGE = re.compile(r'(?:^|[\s:«])(?:vidéo\s*:|podcast\s*:|en direct\s*:|live\s*:|replay\s*:|bon plan\s*:|promos?\s*:|code promo|horoscope|programme tv|top 10|meilleurs? prix|où acheter|quel modèle choisir|test complet|avis et test|comparatif|notre sélection|guide d.achat|le prix chute|offre à saisir|offre folle|match en direct|résultats? du loto)', re.I)
 SIGNIFICANCE = re.compile(r'\b(?:annonce|adopte|vote|accord|loi|réforme|baisse|hausse|augmente|diminue|lance|dévoile|publie|sanctionne|enquête|frappe|conflit|guerre|crise|inflation|élection|investissement|acquisition|fusion|déploiement|cyberattaque|faille|interdit|régulation|record|décision|accorde|condamne|signe|nouveau|résultat|rapport|découvre|développe|création|ouvre|ferme)\b', re.I)
 
+# Signaux éditoriaux : il s'agit d'une priorisation, PAS d'une vérification des faits.
+# Les sujets culturels restent accessibles dans « Tout », mais dominent moins « Essentiel ».
+MAJOR_EVENT = re.compile(
+    r'\b(?:président(?:e|ielle)?|réélu|réélection|premier ministre|gouvernement|parlement|'
+    r'élections?|scrutin|référendum|taux directeur|banque centrale|inflation|budget|'
+    r'déficit|croissance|investissement|acquisition|fusion|sanctions?|traité|'
+    r'lois?|réformes?|conflit|guerre|cessez.le.feu|cyberattaque|piratage|'
+    r'cybersécurité|séisme|inondations?|attentat|accords?|'
+    r'augmentation|réduction|interdiction|démission|condamnation|'
+    r'lancement|déploiement|recherche scientifique|découverte)\b', re.I
+)
+SOFT_TOPIC = re.compile(
+    r'\b(?:roman|littérature|littéraire|écrivain|goncourt|célébrité|people|'
+    r'séries? télé|cinéma|concert|spectacle|critique de film|'
+    r'téléréalité|recettes? de cuisine|horoscope|football|match amical)\b', re.I
+)
+EVERGREEN = re.compile(
+    r'\b(?:nos conseils|guide pratique|astuces?|tout savoir|'
+    r'rétrospective|plongée dans|à (?:lire|voir) absolument|'
+    r'il y a \d+ ans|comment choisir|que regarder)\b', re.I
+)
+PROMOTIONAL = re.compile(
+    r'\b(?:découvrez|on vous dit tout|dans cet article|cliquez|'
+    r'à découvrir|à ne pas manquer|notre sélection|vous explique)\b', re.I
+)
+
 class TextExtractor(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -166,7 +192,7 @@ def fetch_feed(feed):
                 description = child_text(item, '{http://purl.org/rss/1.0/modules/content/}encoded', '{http://www.w3.org/2005/Atom}content')
             summary = concise(description)
             # Pas de pseudo-résumés inventés: si rien n'est fourni, on ignore l'entrée.
-            if not summary or len(summary) < 38:
+            if not summary or not informative_summary(title, summary):
                 continue
             if GARBAGE.search(title):
                 continue
@@ -184,9 +210,7 @@ def fetch_feed(feed):
                 continue
             published_iso = published.isoformat().replace('+00:00', 'Z')
             age_hours = max(0, (NOW - published).total_seconds() / 3600)
-            # L'importance est un indicateur heuristique, pas une validation factuelle.
-            importance = 1 + int(bool(SIGNIFICANCE.search(title))) + int(bool(SIGNIFICANCE.search(summary)))
-            score = round(feed['rank'] + importance + 3.5 / (1 + age_hours / 12), 2)
+            score = editorial_score(title, summary, feed['rank'], age_hours)
             output.append({
                 'id': hashlib.sha256(url.encode('utf-8')).hexdigest()[:20],
                 'category': category,
@@ -212,6 +236,36 @@ def similar(a, b):
         return False
     overlap = len(aa & bb) / min(len(aa), len(bb))
     return overlap >= .75 and len(aa & bb) >= 3
+
+def informative_summary(title: str, summary: str) -> bool:
+    """Écarte les descriptions de type accroche qui ne disent presque rien."""
+    if len(summary) < 40:
+        return False
+    # Ne pas éliminer les véritables nouvelles simplement parce que titre et
+    # résumé décrivent le même événement ; il faut seulement un détail nouveau.
+    extra = fingerprint(summary) - fingerprint(title)
+    return len(extra) >= 2
+
+
+def editorial_score(title: str, summary: str, rank: int, age_hours: float) -> float:
+    """Score de pertinence heuristique, indépendant de toute validation factuelle."""
+    score = rank + 3.5 / (1 + max(0, age_hours) / 12)
+    if MAJOR_EVENT.search(title):
+        score += 3.2
+    if SIGNIFICANCE.search(title):
+        score += 1.5
+    if SIGNIFICANCE.search(summary):
+        score += 0.6
+    if re.search(r'\b\d+(?:[.,]\d+)?\s*%', title):
+        score += 0.7
+    if SOFT_TOPIC.search(title):
+        score -= 3
+    if EVERGREEN.search(title):
+        score -= 2
+    if PROMOTIONAL.search(summary):
+        score -= 1
+    return round(score, 2)
+
 
 def main():
     reports = []
