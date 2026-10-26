@@ -59,13 +59,19 @@ def restore_recent_summaries(buckets: dict, now: dt.datetime, fetch=None) -> int
                 continue
             summary = validate_summary(
                 old.get("summary"), current["title"],
-                current.get("_sourceText") or current.get("summary", "")
+                (current.get("_sourceText") or current.get("summary", "")) + " " +
+                (current.get("_articleText") or "")
             )
             if not summary:
                 continue
             current["summary"] = summary
             current["summaryType"] = "ai"
             current["summaryCached"] = True
+            current["summaryBasis"] = old.get("summaryBasis", "rss")
+            # Ne pas revendiquer une lecture intégrale si elle n'a pas été
+            # retrouvée pendant cette exécution.
+            if current["summaryBasis"] == "article" and not current.get("_articleText"):
+                current["summaryBasis"] = "rss"
             if old.get("titleType") == "ai" and old.get("displayTitle"):
                 valid_title = validate_headline(
                     old["displayTitle"], current["title"],
