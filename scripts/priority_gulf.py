@@ -18,9 +18,9 @@ PRIORITY_CONTEXT = {
     "asOf": AS_OF,
     "title": "Guerre dans le Golfe : conflit régional et détroit d'Ormuz",
     "summary": (
-        "Le conflit entre l'Iran, Israël et les États-Unis reste sans règlement durable. "
-        "Les attaques contre la navigation perturbent le détroit d'Ormuz et les marchés énergétiques. "
-        "Des médiations régionales se poursuivent."
+        "La guerre entre l'Iran, Israël et les États-Unis reste sans accord durable. "
+        "Les attaques contre les navires perturbent le détroit d'Ormuz et les prix de l'énergie. "
+        "Le 26 octobre, une réunion diplomatique à Téhéran cherche à éviter une nouvelle escalade."
     ),
     "note": "Contexte vérifié le 26 octobre 2026, pas un fil d'actualité en direct.",
     "sources": [
@@ -35,6 +35,10 @@ PRIORITY_CONTEXT = {
         {
             "name": "Reuters (26 oct.)",
             "url": "https://www.reuters.com/world/asia-pacific/top-officials-mecca-pact-countries-meet-iranian-officials-tehran-monday-two-2026-10-26/",
+        },
+        {
+            "name": "Associated Press (26 oct.)",
+            "url": "https://apnews.com/article/36486edb61b3bf4e0df67e8a17123e44",
         },
     ],
 }
