@@ -18,6 +18,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 from scripts.ai_summarize import summarize_buckets
+from scripts.cache_summaries import restore_recent_summaries
 from scripts.verify_news import enrich_verification
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -308,7 +309,9 @@ def main():
         return 1
     verification = enrich_verification(buckets, NOW)
     print(f"Recoupement : {verification['corroborated']}/{verification['total']} actualités, {verification['checked']} recherches.")
-    ai_count = summarize_buckets(buckets, NOW)
+    fresh_ai = summarize_buckets(buckets, NOW)
+    cached_ai = restore_recent_summaries(buckets, NOW)
+    ai_count = fresh_ai + cached_ai
     # Les textes sources transmis à l'IA ne doivent pas être publiés dans le JSON.
     for group in buckets.values():
         for article in group:
@@ -317,6 +320,7 @@ def main():
         'generatedAt': NOW.isoformat().replace('+00:00', 'Z'),
         'count': total,
         'aiSummaryCount': ai_count,
+        'aiCachedCount': cached_ai,
         'verification': verification,
         'categories': buckets,
         'feeds': reports,
