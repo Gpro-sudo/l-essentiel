@@ -63,7 +63,7 @@ def norm(text: str) -> str:
 
 
 def keywords(text: str) -> set[str]:
-    return {s for s in re.findall(r"[a-z0-9]+", norm(text)) if len(s) >= 4 and s not in STOP}
+    return {s for s in re.findall(r"[a-z0-9]+", norm(text)) if (len(s) >= 4 or s in {"rdc", "fmi", "bce", "usa"}) and s not in STOP}
 
 
 def owner(source: str) -> str:
