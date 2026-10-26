@@ -150,6 +150,12 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
         if not isinstance(content, str):
             raise ValueError("Format de réponse inattendu")
         response_items = parse_response(content)
+        print(
+            f"OpenRouter : modèle={result.get('model', model)}, "
+            f"fin={choices[0].get('finish_reason', '?')}, "
+            f"réponse={len(content)} caractères, "
+            f"objets JSON reconnus={len(response_items)}."
+        )
     except (urllib.error.URLError, TimeoutError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
         detail = str(exc).replace(key, "[SECRET]").replace("\n", " ")[:160]
         print(f"Synthèse IA non disponible ({type(exc).__name__}: {detail}); résumés RSS conservés.", file=sys.stderr)
@@ -158,9 +164,12 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
     refs = {a["id"]: a for a in articles}
     used = set()
     updated = 0
+    rejected_ids = 0
+    rejected_texts = 0
     for item in response_items:
         uid, text = item.get("id"), item.get("summary")
         if not isinstance(uid, str) or uid in used or uid not in refs:
+            rejected_ids += 1
             continue
         a = refs[uid]
         summary = validate_summary(text, a["title"], a.get("_sourceText") or a["summary"])
@@ -169,5 +178,10 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
             a["summaryType"] = "ai"
             updated += 1
             used.add(uid)
-    print(f"Synthèse IA : {updated}/{len(articles)} brèves validées ; autres = RSS.")
+        else:
+            rejected_texts += 1
+    print(
+        f"Synthèse IA : {updated}/{len(articles)} brèves validées ; "
+        f"ID incorrects={rejected_ids}, textes rejetés={rejected_texts} ; autres = RSS."
+    )
     return updated
