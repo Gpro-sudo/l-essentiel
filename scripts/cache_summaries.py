@@ -11,6 +11,7 @@ import json
 import urllib.request
 
 from scripts.ai_summarize import validate_summary
+from scripts.headline_policy import validate_headline
 
 PREVIOUS_URL = "https://gpro-sudo.github.io/l-essentiel/news.json"
 
@@ -65,6 +66,14 @@ def restore_recent_summaries(buckets: dict, now: dt.datetime, fetch=None) -> int
             current["summary"] = summary
             current["summaryType"] = "ai"
             current["summaryCached"] = True
+            if old.get("titleType") == "ai" and old.get("displayTitle"):
+                valid_title = validate_headline(
+                    old["displayTitle"], current["title"],
+                    current.get("_sourceText") or current.get("summary", "")
+                )
+                if valid_title:
+                    current["displayTitle"] = valid_title
+                    current["titleType"] = "ai"
             restored += 1
         if restored:
             print(f"Synthèses IA antérieures réutilisées : {restored}.")
