@@ -87,7 +87,8 @@ def select_articles(buckets: dict, now: dt.datetime, threshold: float = 6.0) -> 
                 continue
             age = (now - when).total_seconds()
             if (-3600 <= age <= 86400 and float(a.get("score", 0)) >= threshold
-                    and a.get("verification", {}).get("status") == "corroborated"):
+                    and a.get("verification", {}).get("status") == "corroborated"
+                    and a.get("summaryType") != "ai"):
                 fresh.append(a)
         if fresh:
             selected.append(max(fresh, key=lambda a: (a.get("score", 0), a["publishedAt"])))
