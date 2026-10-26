@@ -129,20 +129,34 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
             {"role": "user", "content": json.dumps(contexts, ensure_ascii=False)},
         ],
     }, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(
-        ENDPOINT,
-        data=payload,
-        headers={
-            "Authorization": "Bearer " + key,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://gpro-sudo.github.io/l-essentiel/",
-            "X-Title": "L'Essentiel - briefing personnel",
-        },
-        method="POST",
-    )
-    try:
+    def ask(body: bytes):
+        req = urllib.request.Request(
+            ENDPOINT,
+            data=body,
+            headers={
+                "Authorization": "Bearer " + key,
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://gpro-sudo.github.io/l-essentiel/",
+                "X-Title": "L'Essentiel - briefing personnel",
+            },
+            method="POST",
+        )
         with urllib.request.urlopen(req, timeout=45) as resp:
-            result = json.loads(resp.read(250_000))
+            return json.loads(resp.read(250_000))
+
+    try:
+        try:
+            result = ask(payload)
+        except urllib.error.HTTPError as error:
+            # Le routeur gratuit varie de modèle : certains rejettent le mode
+            # JSON ou le réglage du raisonnement. Un seul repli compatible.
+            if error.code != 400:
+                raise
+            fallback = json.loads(payload)
+            fallback.pop("response_format", None)
+            fallback.pop("reasoning", None)
+            print("OpenRouter : paramètres JSON non acceptés, tentative standard.")
+            result = ask(json.dumps(fallback, ensure_ascii=False).encode("utf-8"))
         if not isinstance(result, dict):
             raise ValueError("Réponse API non structurée")
         if result.get("error"):
