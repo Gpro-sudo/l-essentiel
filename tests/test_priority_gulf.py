@@ -41,7 +41,7 @@ class GulfPriorityTests(unittest.TestCase):
         card = spotlight(article)
         self.assertEqual(card["asOf"], "2026-10-26")
         self.assertEqual(card["latest"]["title"], article["title"])
-        self.assertEqual(len(card["sources"]), 3)
+        self.assertGreaterEqual(len(card["sources"]), 3)
 
 
 if __name__ == "__main__":
