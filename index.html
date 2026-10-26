@@ -327,8 +327,19 @@
     function age(date){const t=new Date(date).getTime();if(!Number.isFinite(t))return 'date inconnue';const h=Math.max(0,(Date.now()-t)/3600000);return h<1?`il y a ${Math.max(1,Math.floor(h*60))} min`:h<24?`il y a ${Math.floor(h)} h`:`il y a ${Math.floor(h/24)} j`}
     function isValidUrl(url){try{return ['https:','http:'].includes(new URL(url).protocol)}catch{return false}}
     function allNews(){const c=state.data?.categories||{};return Object.values(c).flat().filter(a=>a&&a.id&&a.title&&a.url&&isValidUrl(a.url))}
-    function countFor(key){if(key==='saved')return state.saved.length;if(key==='interests')return Object.values(state.preferences).filter(p=>p?.mode==='yes').length;if(key==='home')return homeNews().length;const arr=state.data?.categories?.[key]||[];return state.mode==='short'?arr.filter(a=>a.verification?.status==='corroborated'&&prefMode(a)!=='no').length:arr.length}
-    function nav(){const elem=$('nav');elem.replaceChildren();for(const c of CATEGORIES){const b=document.createElement('button');b.type='button';b.setAttribute('aria-current',state.section===c.id?'page':'false');b.innerHTML=svg(c.icon);const t=document.createElement('span');t.textContent=c.name;const n=document.createElement('span');n.className='count';n.textContent=state.loading?'–':countFor(c.id);b.append(t,n);b.addEventListener('click',()=>{state.section=c.id;if(c.id==='interests')state.range='7d';state.visible=8;state.query='';$('search-input').value='';update();window.scrollTo({top:0,behavior:'smooth'})});elem.append(b)}}
+    function countFor(key){
+      if(key==='saved')return state.saved.length;
+      if(key==='interests')return Object.values(state.preferences).filter(p=>p?.mode==='yes').length;
+      if(key==='home')return homeNews().length;
+      const arr=(state.data?.categories?.[key]||[]).filter(a=>prefMode(a)!=='no');
+      if(key==='autos'){
+        const now=Date.now();
+        const current=arr.filter(a=>{const t=new Date(a.publishedAt).getTime();return Number.isFinite(t)&&now-t<=7*86400000&&t<=now+3600000;});
+        return groupStories(current).length;
+      }
+      return state.mode==='short'?arr.filter(a=>a.verification?.status==='corroborated').length:arr.length;
+    }
+    function nav(){const elem=$('nav');elem.replaceChildren();for(const c of CATEGORIES){const b=document.createElement('button');b.type='button';b.setAttribute('aria-current',state.section===c.id?'page':'false');b.innerHTML=svg(c.icon);const t=document.createElement('span');t.textContent=c.name;const n=document.createElement('span');n.className='count';n.textContent=state.loading?'–':countFor(c.id);b.append(t,n);b.addEventListener('click',()=>{state.section=c.id;if(['interests','autos'].includes(c.id))state.range='7d';state.visible=8;state.query='';$('search-input').value='';update();window.scrollTo({top:0,behavior:'smooth'})});elem.append(b)}}
     function unique(items){const seen=new Set();return items.filter(a=>{if(seen.has(a.id))return false;seen.add(a.id);return true})}
     function homeNews(){
       const keys=CATEGORIES.filter(c=>!['home','saved','interests'].includes(c.id)).map(c=>c.id);
@@ -388,9 +399,12 @@
         items=items.filter(a=>[a.title,a.summary,a.source,CATEGORIES.find(c=>c.id===a.category)?.name].join(' ').toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));
       }
       if(state.section==='saved')items.sort((a,b)=>new Date(b.savedAt||b.publishedAt)-new Date(a.savedAt||a.publishedAt));
-      else if(state.mode==='short'&&state.section!=='home')items.sort((a,b)=>(b.score||0)-(a.score||0)||new Date(b.publishedAt)-new Date(a.publishedAt));
+      else if(state.mode==='short'&&state.section!=='home')items.sort((a,b)=>(Number(b.verification?.status==='corroborated')-Number(a.verification?.status==='corroborated'))*12+(b.score||0)+interestBoost(b)-(a.score||0)-interestBoost(a)||new Date(b.publishedAt)-new Date(a.publishedAt));
       else if(state.section!=='home')items.sort((a,b)=>new Date(b.publishedAt)-new Date(a.publishedAt));
-      if(state.mode==='short'&&!['saved','interests'].includes(state.section))items=items.filter(a=>a.verification?.status==='corroborated');
+      // Automobile : un article de source unique doit rester accessible avec
+      // son statut « non recoupé » au lieu de masquer toute la rubrique.
+      if(state.mode==='short'&&!['saved','interests','autos'].includes(state.section))
+        items=items.filter(a=>a.verification?.status==='corroborated');
       if(state.section!=='saved')items=groupStories(items);
       if(state.section==='interests')items.sort((a,b)=>interestBoost(b)-interestBoost(a)||new Date(b.publishedAt)-new Date(a.publishedAt));
       if(state.mode==='short'&&!['saved','interests'].includes(state.section))items=items.slice(0,state.section==='home'?9:8);
