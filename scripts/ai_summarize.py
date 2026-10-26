@@ -194,11 +194,28 @@ def summarize_buckets(buckets: dict, now: dt.datetime) -> int:
         choices = result.get("choices") or []
         if not choices:
             raise ValueError("Réponse API sans choix (choices vide)")
-        content = choices[0].get("message", {}).get("content", "")
-        if isinstance(content, list):
-            content = "".join(block.get("text", "") for block in content if isinstance(block, dict))
-        if not isinstance(content, str):
-            raise ValueError("Format de réponse inattendu")
+        def text_from(api_result):
+            options = api_result.get("choices") or []
+            message = options[0].get("message", {}) if options else {}
+            value = message.get("content") if isinstance(message, dict) else None
+            if isinstance(value, list):
+                value = "".join(block.get("text", "") for block in value if isinstance(block, dict))
+            return value.strip() if isinstance(value, str) else ""
+
+        content = text_from(result)
+        if not content:
+            # Certains modèles gratuits consomment le budget en raisonnement
+            # et ne retournent pas de message final. Un seul essai de secours,
+            # jamais un texte de raisonnement affiché comme un résumé.
+            fallback = json.loads(payload)
+            fallback["model"] = "openrouter/free"
+            fallback.pop("response_format", None)
+            fallback.pop("reasoning", None)
+            print("OpenRouter : réponse vide, nouvel essai via le routeur gratuit.")
+            result = ask(json.dumps(fallback, ensure_ascii=False).encode("utf-8"))
+            content = text_from(result)
+        if not content:
+            raise ValueError("Aucun texte final renvoyé par les modèles gratuits")
         response_items = parse_response(content)
         print(
             f"OpenRouter : modèle={result.get('model', model)}, "
