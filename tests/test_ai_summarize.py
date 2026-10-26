@@ -29,7 +29,7 @@ class SummaryTests(unittest.TestCase):
             "category": "eco-maroc",
             "title": "La Bourse de Casablanca ouvre en hausse",
             "summary": "Le MASI a progressé de 0,59 % ce lundi, tiré par plusieurs valeurs bancaires.",
-            "_sourceText": "Le MASI a progressé de 0,59 % ce lundi, tiré par plusieurs valeurs bancaires.",
+            "_sourceText": "Le MASI a progressé de 0,59 % ce lundi, tiré par plusieurs valeurs bancaires. La Bourse de Casablanca a ouvert lundi en hausse : selon le flux de l'éditeur, plusieurs valeurs bancaires expliquent une partie du mouvement.",
             "score": 11,
             "publishedAt": "2026-10-26T10:00:00Z",
             "verification": {
@@ -61,7 +61,7 @@ class SummaryTests(unittest.TestCase):
         ))
 
     def test_accept_grounded_summary(self):
-        text = "Le MASI gagne 0,59 % à l'ouverture lundi, soutenu par plusieurs valeurs bancaires."
+        text = "La Bourse de Casablanca a ouvert lundi en hausse : le MASI progresse de 0,59 %. D'après le flux de l'éditeur, plusieurs valeurs bancaires expliquent une partie du mouvement."
         self.assertEqual(validate_summary(text, self.article["title"], self.article["_sourceText"]), text)
 
     def test_no_key_keeps_original(self):
@@ -72,7 +72,7 @@ class SummaryTests(unittest.TestCase):
         self.assertNotIn("summaryType", self.article)
 
     def test_one_batched_result(self):
-        text = "Le MASI gagne 0,59 % à l'ouverture lundi, soutenu par plusieurs valeurs bancaires."
+        text = "La Bourse de Casablanca a ouvert lundi en hausse : le MASI progresse de 0,59 %. D'après le flux de l'éditeur, plusieurs valeurs bancaires expliquent une partie du mouvement."
         reply = {"choices": [{"message": {"content": json.dumps(
             {"items": [{"id": "a1", "summary": text}]},
             ensure_ascii=False
