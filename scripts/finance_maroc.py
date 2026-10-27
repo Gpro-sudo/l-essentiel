@@ -77,19 +77,23 @@ MARKET_CONTEXT = {
 
 
 def targeted_finance_feeds() -> list[dict]:
+    # Recherches volontairement courtes : Google Actualités renvoie souvent
+    # zéro résultat si trop de mots obligatoires et d'opérateurs se cumulent.
     queries = [
-        '"Jet Energy" ("introduction en bourse" OR IPO OR souscription) when:7d',
-        '("MASI" OR "Bourse de Casablanca") (baisse OR hausse OR clôture) when:3d',
-        '(AMMC OR "Bourse de Casablanca") (introduction OR visa OR OPA) when:7d',
-        '("Bourse de Casablanca" OR MASI) (perspectives OR valorisations OR taux obligataires) when:7d',
-        'site:medias24.com (MASI OR bourse OR IPO) when:7d',
-        'site:boursenews.ma ("MASI" OR "Jet Energy") when:7d',
+        'Jet Energy bourse when:7d',
+        'Jet Energy IPO when:7d',
+        'IPO Maroc when:7d',
+        'MASI Casablanca when:3d',
+        'Bourse Casablanca baisse when:7d',
+        'AMMC prospectus when:7d',
+        'Bourse Maroc perspectives when:7d',
+        'taux obligataires MASI when:7d',
     ]
     return [{
         "category": "eco-maroc",
         "name": "Google Actualités",
         "url": "https://news.google.com/rss/search?" + urllib.parse.urlencode({
-            "q": q, "hl": "fr", "gl": "MA", "ceid": "MA:fr"
+            "q": q, "hl": "fr", "gl": "FR", "ceid": "FR:fr"
         }),
         "rank": 6,
         "google_news": True,
