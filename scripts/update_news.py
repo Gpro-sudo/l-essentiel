@@ -25,6 +25,7 @@ from scripts.interests import interest_feeds, classify_story, automotive_related
 from scripts.headline_policy import sensational, neutral_title_from_excerpt
 from scripts.editorial_facts import apply_primary_correction
 from scripts.article_content import hydrate_articles
+from scripts.finance_maroc import targeted_finance_feeds, is_maroc_market, finance_digest
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'news.json'
@@ -55,7 +56,7 @@ FEEDS = [
     {'category': 'tech', 'name': '01net', 'url': 'https://www.01net.com/rss/actus.xml', 'rank': 3, 'non_ai': True},
     {'category': 'tech', 'name': 'Numerama', 'url': 'https://www.numerama.com/tech/feed/', 'rank': 3, 'non_ai': True},
     {'category': 'tech', 'name': 'Clubic', 'url': 'https://www.clubic.com/xml/news.rss', 'rank': 2, 'non_ai': True},
-] + targeted_feeds() + interest_feeds()
+] + targeted_feeds() + interest_feeds() + targeted_finance_feeds()
 
 MAROC_CONTEXT = re.compile(r'\b(?:maroc\w*|royaume|rabat|casablanca|tanger|fès|fes|marrakech|agadir|kénitra|kenitra|oujda|meknès|tetouan|tétouan|safi|laâyoune|dakhla|nador|berkane|salé|sale|bouskoura|bank al.maghrib|oncf|ocp|rni|pam|akhannouch|el mansouri|dirham\w*|makhzen)\b', re.I)
 ECON_MA = re.compile(r'\b(?:économi\w*|finance\w*|financi\w*|investissement\w*|banque\w*|bank al.maghrib|dirham|inflation|bourse|casablanca finance|taux directeur|budget|fiscal\w*|exportation\w*|importation\w*|industrie\w*|tourisme|croissance|emploi\w*|entreprise\w*|PIB|commerce extérieur|agriculture|immobilier|logistique|port(?:uaire)?|énergie|renouvelable|ONCF|OCP|CDG|AMMC|impôt\w*|taxe\w*)\b', re.I)
@@ -252,6 +253,8 @@ def fetch_feed(feed):
                 continue
             if feed.get('autos_topic_only') and not automotive_related(title, summary):
                 continue
+            if feed.get('finance_only') and not is_maroc_market(title, summary):
+                continue
             # Le flux Hespress est généraliste : ne pas mélanger les articles étrangers à la rubrique Maroc.
             if feed['name'] == 'Hespress FR' and not MAROC_CONTEXT.search(f'{title} {summary}'):
                 continue
@@ -269,6 +272,8 @@ def fetch_feed(feed):
             score = editorial_score(title, summary, feed['rank'], age_hours)
             if feed.get('gulf_only'):
                 score += 5
+            if feed.get('finance_only'):
+                score += 4
             article_id = hashlib.sha256(url.encode('utf-8')).hexdigest()[:20]
             topic_key, topic_label, story_key = classify_story(title, summary, category, article_id)
             output.append({
@@ -346,7 +351,7 @@ def main():
     for a in candidates:
         key = a['category']
         bucket = buckets.get(key)
-        if bucket is None or len(bucket) >= MAX_ITEMS_PER_CATEGORY:
+        if bucket is None or len(bucket) >= (24 if key == 'eco-maroc' else MAX_ITEMS_PER_CATEGORY):
             continue
         if a['url'] in visited_urls or any(similar(a['title'], b['title']) for b in bucket):
             continue
@@ -416,6 +421,7 @@ def main():
     priority = spotlight(live_gulf[0] if live_gulf else None)
     result = {
         'priority': priority,
+        'financialBriefing': finance_digest(),
         'editorialVersion': 4,
         'generatedAt': NOW.isoformat().replace('+00:00', 'Z'),
         'count': total,
