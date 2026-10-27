@@ -589,8 +589,16 @@
       $('financial-masi-change').textContent=data.indexChange+' · séance du '+last.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
       $('financial-ipo').textContent=data.ipo.name;
       $('financial-ipo-status').textContent=data.ipo.status;
-      $('financial-subscription').textContent='Souscriptions : '+data.ipo.subscription+' · Première cotation : '+data.ipo.firstListing;
-      $('financial-price').textContent='Prix indicatif : '+data.ipo.price+' · Levée envisagée : '+data.ipo.amount;
+      const afterSubscription=Date.now()>new Date('2026-11-05T23:59:59+01:00').getTime();
+      const afterListing=Date.now()>new Date('2026-11-16T23:59:59+01:00').getTime();
+      const financialIpoHeading=section.querySelector('.financial-section h3');
+      if(financialIpoHeading)financialIpoHeading.textContent=afterSubscription?'IPO Jet Energy · calendrier historique':'Prochaine IPO : Jet Energy';
+      $('financial-subscription').textContent=
+        'Souscriptions annoncées : '+data.ipo.subscription+
+        ' · Première cotation annoncée : '+data.ipo.firstListing+
+        (afterListing?' · Vérifier la cotation effective auprès de la Bourse.':
+         afterSubscription?' · Date de souscription dépassée : vérifier les résultats officiels.':'');
+      $('financial-price').textContent='Fourchette annoncée au prospectus : '+data.ipo.price+' · Levée envisagée : '+data.ipo.amount;
       $('financial-ipo-detail').textContent=data.ipo.detail;
       $('financial-fact').textContent=data.market.fact;
       $('financial-analysis').textContent=data.market.analysis;
