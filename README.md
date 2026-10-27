@@ -23,6 +23,23 @@ Ouvrir <http://localhost:8000>. Ne pas ouvrir `index.html` directement en `file:
 
 Le workflow récupère les RSS et publie directement le site (sans commit automatique). Il est planifié **une fois par heure**, avec une heure qui peut dériver selon la charge de GitHub Actions. Le bouton de rafraîchissement de l'interface recharge le JSON disponible sur le site ; il ne déclenche pas une nouvelle exécution GitHub Actions.
 
+## Voix française Google Chirp 3 HD (option payante sous quota gratuit)
+
+L'interface contient une option **Google Chirp 3 HD · voix naturelle** qui apparaît **uniquement lorsque de vrais MP3 Google ont été générés**. La voix Google n'est jamais simulée par eSpeak ou l'API navigateur. Sans configuration du compte Google, le site reste sur la lecture vocale existante.
+
+Configuration (effectuée par le propriétaire du dépôt, jamais dans le navigateur ni dans une conversation) :
+
+1. Dans [Google Cloud](https://console.cloud.google.com/), créer/sélectionner un projet avec facturation et activer **Cloud Text-to-Speech API**.
+2. Créer un compte de service limité à cette API selon les instructions Google Cloud et récupérer sa clé JSON. Ne jamais l'ajouter dans le dépôt, le site ou un message.
+3. Dans **GitHub → Settings → Secrets and variables → Actions → New repository secret**, créer le secret nommé **`GOOGLE_TTS_SERVICE_ACCOUNT_JSON`** contenant le JSON intégral.
+4. Facultatif : dans les variables GitHub Actions, définir **`GOOGLE_TTS_VOICE`** à `fr-FR-Chirp3-HD-Aoede` (femme, valeur par défaut) ou `fr-FR-Chirp3-HD-Charon` (homme). Puis lancer **Run workflow** dans Actions → « Actualiser les actualités ».
+
+Lorsqu'un secret valide est présent, GitHub Actions génère des MP3 Google, ajoute leurs URLs au manifeste audio et propose le choix **Google Chirp 3 HD** sur smartphone et ordinateur. La clé reste **sur GitHub Actions**, jamais visible dans le fichier JSON public ou le navigateur. La synthèse se fait lors de la construction du site : pas de requêtes Google quand le lecteur clique sur Écouter.
+
+La tarification dépend du modèle : Google annonce **1 million de caractères gratuits/mois pour Chirp 3 HD, puis 30 USD/million**, avec **facturation Google Cloud à activer obligatoirement**. Le script réutilise les MP3 en cache et borne les créations nouvelles à **6 fichiers et 1 850 caractères par exécution** et à **650 000 caractères environ par mois** suivant son journal local de cache. Ces limites sont des **protections logicielles approximatives**, PAS des limites garanties du compte Google Cloud (le cache peut être évincé). Configurer également des alertes de budget et des quotas du projet Google Cloud. L'auteur est responsable de ses éventuelles factures.
+
+Lorsque le compte Google n'est pas connecté, lorsque le budget logiciel est atteint ou lorsque l'API est indisponible, le navigateur utilise la voix système ou un ancien MP3 hors ligne. Les nouveaux MP3 Google ne sont alors pas garantis pour chaque article.
+
 ## Lecture vocale des actualités
 
 Le site propose **🔊 Écouter** sous chaque carte et **▶ Écouter le briefing** pour lire les actualités actuellement affichées dans la rubrique. La lecture prononce le titre visible et le **résumé affiché**, pas le texte intégral d'un site tiers.
