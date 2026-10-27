@@ -60,11 +60,26 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
               report.write(f"### Bilan de L'Essentiel\n\n- Actualités recueillies : **{total}**\n- Événements recoupés : **{corroborated}**\n- Synthèses IA : **{ai}**, dont **{cached}** conservées\n")
           PY
-      - name: Installer la synthèse vocale locale (secours mobile)
+      - name: Restaurer le cache des voix Google
+        uses: actions/cache@v4
+        with:
+          path: .tts-cache/google
+          key: google-voice-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            google-voice-
+      - name: Installer les moteurs de lecture
+        env:
+          GOOGLE_TTS_ENABLED: ${{ secrets.GOOGLE_TTS_SERVICE_ACCOUNT_JSON != '' }}
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq espeak-ng ffmpeg
+          if [ "$GOOGLE_TTS_ENABLED" = "true" ]; then
+            python -m pip install 'google-auth[requests]>=2.30,<3'
+          fi
       - name: Préparer le site et ses fichiers audio
+        env:
+          GOOGLE_TTS_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_TTS_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_TTS_VOICE: ${{ vars.GOOGLE_TTS_VOICE || 'fr-FR-Chirp3-HD-Aoede' }}
         run: |
           mkdir -p dist
           cp index.html dist/index.html
