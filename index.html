@@ -418,8 +418,17 @@
       let saved='';
       try{saved=localStorage.getItem('essentiel-voice')||''}catch{}
       const exists=value=>value&&[...select.options].some(o=>o.value===value);
-      if(exists(chosen))select.value=chosen;
-      else if(exists(saved))select.value=saved;
+      // Préférer la voix « Google français » déjà exposée gratuitement
+      // par le navigateur, sans API ni facturation Google Cloud.
+      // Un choix explicite du visiteur, conservé dans localStorage,
+      // est toujours prioritaire sur la sélection automatique.
+      const googleBrowserVoice=voices.find(v=>
+        /^google\b/i.test(v.name||'')&&
+        /(?:fran[cç]ais|french|\bfr\b)/i.test(v.name||'')
+      );
+      if(exists(saved))select.value=saved;
+      else if(exists(chosen))select.value=chosen;
+      else if(googleBrowserVoice)select.value=googleBrowserVoice.voiceURI;
       else if(googleReady)select.value='google-hd';
       select.disabled=!audioSupported&&!googleReady;
     }
