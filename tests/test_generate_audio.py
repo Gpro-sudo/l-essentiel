@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from scripts.generate_audio import generate, text_for_article, text_for_finance
+from scripts.generate_audio import generate, text_for_article, text_for_finance, GoogleAudio
 
 
 class AudioGenerationTests(unittest.TestCase):
@@ -49,6 +49,38 @@ class AudioGenerationTests(unittest.TestCase):
         self.assertIn("Jet Energy", narration)
         self.assertIn("conseil de placement", narration)
         self.assertIn("16 999,56", narration)
+
+    def test_google_is_never_used_without_explicit_credentials(self):
+        calls = []
+        def mock_google(text, target, token, voice):
+            calls.append(text)
+            return True
+        with tempfile.TemporaryDirectory() as d:
+            service=GoogleAudio(cache=Path(d), token=None, writer=mock_google)
+            self.assertFalse(service.create("Bonjour, la Bourse de Casablanca.", Path(d)/"x.mp3"))
+            self.assertEqual(calls, [])
+
+    def test_google_is_cached_and_generates_manifest_entries(self):
+        calls=[]
+        def fake_google(text, destination, token, voice):
+            calls.append((text, voice))
+            destination.write_bytes(b"ID3"+bytes(1200))
+            return True
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            google=GoogleAudio(cache=root/"cache",token="fake-test-token",writer=fake_google)
+            item={"id":"0123456789abcdefabcd","title":"Le MASI baisse",
+                  "summary":"Les rendements obligataires pèsent sur les actions."}
+            first=generate({"categories":{"eco-maroc":[item]}},root/"first",
+                           maker=lambda text,output:False,google=google)
+            self.assertEqual(len(calls),1)
+            self.assertEqual(first["google"]["items"][item["id"]],
+                             "audio/0123456789abcdefabcd-google.mp3")
+            self.assertIn("Chirp3-HD",first["google"]["voice"])
+            second=generate({"categories":{"eco-maroc":[item]}},root/"second",
+                            maker=lambda text,output:False,google=google)
+            self.assertEqual(len(calls),1)
+            self.assertEqual(second["google"]["items"],first["google"]["items"])
 
     def test_output_audio_paths_are_safe_and_manifest_is_written(self):
         items = [
