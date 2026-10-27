@@ -47,6 +47,14 @@ La rubrique **Automobile & transport** récupère des titres et courts extraits 
 
 Exemple : le rapprochement **Tesla / SpaceX envisagé** constitue un sujet commun, mais il ne faut pas le décrire comme une fusion réalisée. Les projets conjoints, comme Terafab, sont suivis séparément. Les regroupements n'impliquent pas que les deux sociétés ont signé un accord.
 
+## Bourse & IPO Maroc : veille financière ciblée
+
+La rubrique **Économie Maroc** et la page **À la une** contiennent un dossier **Bourse / IPO** documenté, en complément des dépêches générales. Il reprend explicitement les dernières informations disponibles à la date du **27 octobre 2026**, avec la séance officielle MASI du **26 octobre 2026** et le calendrier prévu de l'introduction de Jet Energy.
+
+Ce dossier est une **photographie datée**, pas un flux de cours, ni une analyse recalculée automatiquement. Lorsque plusieurs jours passent, il porte un avertissement « analyse historique ». Les dates futures de l'IPO restent marquées comme prévues ; le prix définitif n'est pas inventé. Le moteur collecte séparément les **nouvelles fraîches** avec des requêtes ciblées sur IPO, AMMC, MASI, taux obligataires, valorisations et résultats. Les médias sous-jacents gardent leur nom d'éditeur pour éviter les faux recoupements par agrégateur.
+
+La section « Pourquoi le MASI corrige » distingue les **faits constatés** des **scénarios de marché attribués à CFG Research**. Aucun conseil d'achat ou de vente n'est donné. Les informations fondamentales doivent être vérifiées dans le prospectus AMMC et dans les publications officielles avant une décision financière.
+
 ## Titres factuels plutôt que sensationnalistes
 
 La page conserve le **titre original du média** dans le lien et les données JSON, mais peut afficher un **titre reformulé** lorsque le titre initial contient une accroche sensationnaliste (par exemple « décision radicale », « coup de tonnerre », « scandale »). La reformulation est fondée uniquement sur le titre, la description RSS et les autres titres de recoupement ; elle n'est pas une vérification indépendante du contenu complet.
