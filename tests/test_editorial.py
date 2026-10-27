@@ -1,7 +1,7 @@
 """Contrôles minimaux du tri éditorial, sans accès au réseau."""
 import unittest
 
-from scripts.update_news import editorial_score, informative_summary, parse_time
+from scripts.update_news import editorial_score, informative_summary, parse_time, is_media_self_promotion
 
 
 class EditorialTests(unittest.TestCase):
@@ -28,6 +28,28 @@ class EditorialTests(unittest.TestCase):
         self.assertTrue(informative_summary(
             "La Bourse de Casablanca ouvre en hausse",
             "Le MASI a progressé de 0,59 % ce lundi, porté par plusieurs valeurs bancaires.",
+        ))
+
+    def test_bdm_alert_article_is_self_promotion(self):
+        self.assertTrue(is_media_self_promotion(
+            "IA, SEO, cybersécurité… Créez votre alerte BDM pour suivre vos thématiques préférées",
+            "Depuis votre profil BDM, vous pouvez sélectionner des thématiques "
+            "afin de recevoir une sélection quotidienne d'articles.",
+            "Blog du Modérateur",
+        ))
+
+    def test_real_cybersecurity_news_is_not_promotion(self):
+        self.assertFalse(is_media_self_promotion(
+            "Une faille de cybersécurité touche des entreprises françaises",
+            "Les experts ont révélé une vulnérabilité et détaillé les correctifs.",
+            "Blog du Modérateur",
+        ))
+
+    def test_external_product_launch_is_not_self_promotion(self):
+        self.assertFalse(is_media_self_promotion(
+            "Google lance un outil d'alertes sur la sécurité informatique",
+            "Google annonce un nouvel outil destiné aux administrateurs systèmes.",
+            "Blog du Modérateur",
         ))
 
     def test_2026_election_is_not_marked_as_old(self):
