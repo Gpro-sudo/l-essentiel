@@ -90,6 +90,37 @@ PROMOTIONAL = re.compile(
     r'à découvrir|à ne pas manquer|notre sélection|vous explique)\b', re.I
 )
 
+MEDIA_SELF_PROMO = re.compile(
+    r'\b(?:créez|creez|activez|configurez|recevez|abonnez.vous|'
+    r'inscrivez.vous|personnalisez)\b.{0,85}'
+    r'\b(?:votre|vos|nos|notre)\b.{0,50}'
+    r'\b(?:alerte|newsletter|abonnement|profil|compte|notifications?)\b'
+    r'|\b(?:notre|nos)\b.{0,45}\b(?:newsletter|alertes?|abonnement|compte)\b',
+    re.I
+)
+
+
+def is_media_self_promotion(title: str, summary: str, publisher: str) -> bool:
+    """Exclut la promotion par un média de son propre service de veille.
+
+    Une nouvelle fonctionnalité externe reste une actualité possible : seule
+    l'auto-promotion reconnaissable est filtrée.
+    """
+    outlet = publisher.casefold()
+    if not any(name in outlet for name in ('bdm', 'modérateur', 'moderateur', '01net',
+                                          'numerama', 'clubic', 'franceinfo',
+                                          'france 24', 'rfi', 'hespress')):
+        return False
+    if MEDIA_SELF_PROMO.search(title):
+        return True
+    return bool(
+        re.search(r'\b(?:alerte|newsletter|abonnement|compte)\b', title, re.I)
+        and re.search(r'\b(?:notre site|notre média|nos abonnés|votre profil|'
+                      r'compte bdm|profil bdm|nous lançons|recevoir chaque jour)\b',
+                      summary, re.I)
+    )
+
+
 class TextExtractor(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -215,7 +246,7 @@ def fetch_feed(feed):
             # Pas de pseudo-résumés inventés: si rien n'est fourni, on ignore l'entrée.
             if not summary or not informative_summary(title, summary):
                 continue
-            if GARBAGE.search(title):
+            if GARBAGE.search(title) or is_media_self_promotion(title, summary, publisher):
                 continue
             if feed.get('gulf_only') and not gulf_relevant(title, summary):
                 continue
