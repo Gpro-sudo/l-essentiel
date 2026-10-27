@@ -30,7 +30,8 @@ Le site propose **🔊 Écouter** sous chaque carte et **▶ Écouter le briefin
 - **Pause / Reprendre / Arrêter** et réglage de vitesse (0,85× à 1,3×).
 - Choix facultatif parmi les voix **françaises installées** sur l'appareil ; sinon, la voix française par défaut est demandée au navigateur.
 - Fonctionne via l'API Web Speech native (`speechSynthesis` et `SpeechSynthesisUtterance`). **Aucune clé, aucun serveur, aucun fichier audio ou coût d'API** ; compatibilité, qualité des voix et comportement en arrière-plan varient suivant l'appareil et le navigateur.
-- Cliquer sur « Écouter le briefing » lit les cartes **actuellement affichées** l'une après l'autre, sans ouvrir les articles. Passer dans une autre rubrique arrête la lecture. Sur mobile, la lecture peut s'interrompre si l'écran est verrouillé.
+- Cliquer sur « Écouter le briefing » lit les cartes **actuellement affichées** l'une après l'autre, sans ouvrir les articles. Le dossier **Bourse / IPO Maroc** possède en plus son propre bouton « Écouter ce point Bourse », qui lit les chiffres, le calendrier d'introduction, les explications sur la correction du MASI et les perspectives en six séquences. Il comporte aussi Pause/Reprendre et Arrêter, synchronisés avec le lecteur général.
+- Passer dans une autre rubrique arrête la lecture. Sur mobile, la lecture peut s'interrompre si l'écran est verrouillé.
 - La synthèse vocale n'améliore pas l'exactitude des nouvelles : elle lit fidèlement les résumés disponibles et leur avertissement de provenance reste visible.
 
 ## Personnaliser le fil : « Ça m'intéresse » / « Pas pour moi »
