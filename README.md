@@ -23,6 +23,16 @@ Ouvrir <http://localhost:8000>. Ne pas ouvrir `index.html` directement en `file:
 
 Le workflow récupère les RSS et publie directement le site (sans commit automatique). Il est planifié **une fois par heure**, avec une heure qui peut dériver selon la charge de GitHub Actions. Le bouton de rafraîchissement de l'interface recharge le JSON disponible sur le site ; il ne déclenche pas une nouvelle exécution GitHub Actions.
 
+## Lecture vocale des actualités
+
+Le site propose **🔊 Écouter** sous chaque carte et **▶ Écouter le briefing** pour lire les actualités actuellement affichées dans la rubrique. La lecture prononce le titre visible et le **résumé affiché**, pas le texte intégral d'un site tiers.
+
+- **Pause / Reprendre / Arrêter** et réglage de vitesse (0,85× à 1,3×).
+- Choix facultatif parmi les voix **françaises installées** sur l'appareil ; sinon, la voix française par défaut est demandée au navigateur.
+- Fonctionne via l'API Web Speech native (`speechSynthesis` et `SpeechSynthesisUtterance`). **Aucune clé, aucun serveur, aucun fichier audio ou coût d'API** ; compatibilité, qualité des voix et comportement en arrière-plan varient suivant l'appareil et le navigateur.
+- Cliquer sur « Écouter le briefing » lit les cartes **actuellement affichées** l'une après l'autre, sans ouvrir les articles. Passer dans une autre rubrique arrête la lecture. Sur mobile, la lecture peut s'interrompre si l'écran est verrouillé.
+- La synthèse vocale n'améliore pas l'exactitude des nouvelles : elle lit fidèlement les résumés disponibles et leur avertissement de provenance reste visible.
+
 ## Personnaliser le fil : « Ça m'intéresse » / « Pas pour moi »
 
 - Chaque actualité propose **♡ Ça m'intéresse** et **✕ Pas pour moi**. Le choix porte sur un **sujet détecté** (Tesla, SpaceX, fusion Tesla–SpaceX...), ou sur une histoire précise si le système ne reconnaît pas de thème.
