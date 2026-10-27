@@ -68,6 +68,13 @@
     .financial-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;color:var(--accent);font-size:11px;font-weight:800}
     .financial-head span:last-child{color:var(--muted);font-weight:650}
     .financial-digest h2{font-size:21px;line-height:1.3;letter-spacing:-.025em;margin:10px 0 13px}
+    .financial-audio-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 13px}
+    .financial-audio-controls button{font-size:11px;font-weight:750;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer}
+    .financial-audio-controls button:disabled{opacity:.48;cursor:not-allowed}
+    .financial-audio-controls button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+    #financial-listen{background:var(--accent-weak);color:var(--accent)}
+    #financial-listen[aria-pressed="true"]{border-color:var(--accent)}
+    #financial-audio-status{font-size:11px;color:var(--muted);line-height:1.5;flex-basis:100%}
     .financial-stats,.financial-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
     .financial-stats>div{display:flex;flex-direction:column;gap:5px;background:var(--soft);padding:13px;border-radius:9px}
     .financial-stats span,.financial-stats small{color:var(--muted);font-size:11px}
@@ -237,6 +244,12 @@
             <span id="financial-asof"></span>
           </div>
           <h2 id="financial-title">Bourse de Casablanca</h2>
+          <div class="financial-audio-controls" role="group" aria-label="Lecture vocale du point Bourse">
+            <button type="button" id="financial-listen" aria-label="Écouter ce point Bourse" disabled>🔊 Écouter ce point Bourse</button>
+            <button type="button" id="financial-audio-pause" aria-label="Mettre le point Bourse en pause" disabled>⏸ Pause</button>
+            <button type="button" id="financial-audio-stop" aria-label="Arrêter la lecture du point Bourse" disabled>⏹ Arrêter</button>
+            <span id="financial-audio-status" role="status" aria-live="polite">Lecture du dossier complet : IPO, MASI et perspectives.</span>
+          </div>
           <div class="financial-stats">
             <div><span>MASI · dernière séance datée</span><strong id="financial-masi"></strong><small id="financial-masi-change"></small></div>
             <div><span>IPO annoncée</span><strong id="financial-ipo"></strong><small id="financial-ipo-status"></small></div>
@@ -391,6 +404,28 @@
         message=(audio.status==='paused'?'En pause : ':'Lecture : ')+(audio.position+1)+' / '+audio.queue.length+' · '+title;
       }else if(audio.note)message=audio.note;
       $('audio-status').textContent=message;
+      const financeActive=active&&audio.mode==='finance';
+      const financeListen=$('financial-listen');
+      const financePause=$('financial-audio-pause');
+      const financeStop=$('financial-audio-stop');
+      financeListen.disabled=!audioSupported||$('financial-digest').hidden||!state.data?.financialBriefing;
+      financeListen.setAttribute('aria-pressed',String(financeActive));
+      financeListen.textContent=financeActive
+        ?(audio.status==='paused'?'▶ Reprendre le point Bourse':'⏹ Arrêter ce point Bourse')
+        :'🔊 Écouter ce point Bourse';
+      financeListen.setAttribute('aria-label',financeActive
+        ?(audio.status==='paused'?'Reprendre le point Bourse':'Arrêter la lecture du point Bourse')
+        :'Écouter ce point Bourse');
+      financePause.disabled=!financeActive||!audioSupported;
+      financeStop.disabled=!financeActive||!audioSupported;
+      financePause.textContent=audio.status==='paused'?'▶ Reprendre':'⏸ Pause';
+      financePause.setAttribute('aria-label',audio.status==='paused'?'Reprendre le point Bourse':'Mettre le point Bourse en pause');
+      const financeStatus=$('financial-audio-status');
+      financeStatus.textContent=!audioSupported
+        ?'Lecture vocale non disponible dans ce navigateur.'
+        :financeActive&&current
+          ?(audio.status==='paused'?'En pause · ':'Lecture · ')+(audio.position+1)+' / '+audio.queue.length+' · '+current.title
+          :'Lecture du dossier complet : IPO, MASI et perspectives.';
       document.querySelectorAll('.listen-article').forEach(button=>{
         const selected=Boolean(current&&current.id===button.dataset.articleId);
         button.setAttribute('aria-pressed',String(selected));
@@ -430,6 +465,56 @@
       narrator.cancel();const session=++audio.session;
       audio.queue=entries;audio.position=0;audio.mode=mode;audio.section=state.section;
       audio.note='';audio.status='speaking';syncAudioUI();speakNext(session);
+    }
+    function financialAudioEntries(){
+      if($('financial-digest').hidden||!state.data?.financialBriefing)return [];
+      // Ne jamais inventer des cours ou des dates : on lit le texte
+      // effectivement affiché, y compris son avertissement d'ancienneté.
+      const read=id=>$(id).textContent.trim();
+      return [
+        {
+          id:'finance-introduction',
+          title:'Point Bourse de Casablanca',
+          summary:read('financial-asof')+'. '+read('financial-title')+
+            '. Dernière séance du MASI : '+read('financial-masi')+
+            '. Variation : '+read('financial-masi-change')+'.'
+        },
+        {
+          id:'finance-ipo-calendrier',
+          title:'Introduction en Bourse de '+read('financial-ipo'),
+          summary:read('financial-ipo-status')+'. '+read('financial-subscription')+
+            '. '+read('financial-price')+'.'
+        },
+        {
+          id:'finance-ipo-detail',
+          title:'Jet Energy, les détails de l’opération',
+          summary:read('financial-ipo-detail')
+        },
+        {
+          id:'finance-masi-raisons',
+          title:'Pourquoi le MASI corrige',
+          summary:read('financial-fact')
+        },
+        {
+          id:'finance-masi-perspectives',
+          title:'Les perspectives et les facteurs de risque',
+          summary:read('financial-analysis')
+        },
+        {
+          id:'finance-masi-surveillance',
+          title:'Les indicateurs à surveiller',
+          summary:read('financial-watch')+' '+read('financial-disclaimer')
+        }
+      ].filter(a=>a.summary.trim());
+    }
+    function toggleFinanceAudio(){
+      if(!audioSupported)return;
+      if(audio.mode==='finance'&&audio.status!=='idle'){
+        if(audio.status==='paused')togglePauseAudio();
+        else stopAudio('Lecture du point Bourse arrêtée.');
+      }else{
+        playAudio(financialAudioEntries(),'finance');
+      }
     }
     function toggleArticleAudio(a){
       if(!audioSupported)return;
@@ -614,6 +699,9 @@
         links.append(a);
       }
       $('financial-goto').hidden=state.section==='eco-maroc';
+      // Le panneau est rendu avant les articles, donc on synchronise aussi
+      // ses boutons quand l'interface est actualisée sans changer de section.
+      syncAudioUI();
     }
     function articleList(){
       let items=state.section==='saved'?state.saved.slice():state.section==='interests'?allNews().filter(followed):state.section==='home'?homeNews():(state.data?.categories?.[state.section]||[]).slice();
@@ -766,6 +854,9 @@
         if(seq===reqCount){state.loading=false;update()}
       }
     }
+    $('financial-listen').addEventListener('click',toggleFinanceAudio);
+    $('financial-audio-pause').addEventListener('click',togglePauseAudio);
+    $('financial-audio-stop').addEventListener('click',()=>stopAudio('Lecture du point Bourse arrêtée.'));
     $('financial-goto').addEventListener('click',()=>{
       state.section='eco-maroc';state.range='7d';state.visible=8;state.query='';$('search-input').value='';update();
       $('list-title').scrollIntoView({behavior:'smooth',block:'start'});
