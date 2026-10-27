@@ -379,10 +379,10 @@
     const audioSupported=typeof window!=='undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
     const audio={queue:[],position:0,session:0,mode:'',section:'',status:'idle',note:''};
     const narrator=audioSupported?window.speechSynthesis:null;
-    let audioFiles={finance:'',items:{}};
+    let audioFiles={finance:'',items:{},google:{finance:'',items:{},voice:''}};
     let currentRecording=null;
     const hasRecording=id=>Boolean(audioFiles.items[String(id)]);
-    const availableFor=a=>audioSupported||hasRecording(a?.id);
+    const availableFor=a=>audioSupported||hasRecording(a?.id)||Boolean(audioFiles.google.items[String(a?.id)]);
     function audioUrlSafe(path){
       return typeof path==='string'&&/^audio\/[a-z0-9_-]+\.mp3$/.test(path);
     }
@@ -396,22 +396,32 @@
         for(const [id,path] of Object.entries(manifest.items)){
           if(/^[0-9a-f]{20}$/.test(id)&&audioUrlSafe(path))items[id]=path;
         }
-        audioFiles={finance:audioUrlSafe(manifest.finance)?manifest.finance:'',items};
-        update(false);
+        const googleItems={};
+        for(const [id,path] of Object.entries(manifest.google?.items||{})){
+          if(/^[0-9a-f]{20}$/.test(id)&&audioUrlSafe(path))googleItems[id]=path;
+        }
+        audioFiles={finance:audioUrlSafe(manifest.finance)?manifest.finance:'',items,
+          google:{finance:audioUrlSafe(manifest.google?.finance)?manifest.google.finance:'',items:googleItems,voice:String(manifest.google?.voice||'')}};
+        initVoices();update(false);
       }catch{
-        audioFiles={finance:'',items:{}};
-        syncAudioUI();
+        audioFiles={finance:'',items:{},google:{finance:'',items:{},voice:''}};
+        initVoices();syncAudioUI();
       }
     }
     function initVoices(){
-      if(!audioSupported)return;
       const select=$('audio-voice'),chosen=select.value;
-      const voices=narrator.getVoices().filter(v=>/^fr(?:-|_)/i.test(v.lang||''));
-      select.replaceChildren(new Option('Français (appareil)',''));
+      const voices=audioSupported?narrator.getVoices().filter(v=>/^fr(?:-|_)/i.test(v.lang||'')):[];
+      const googleReady=Boolean(audioFiles.google.finance||Object.keys(audioFiles.google.items).length);
+      select.replaceChildren(new Option('Voix du téléphone / navigateur',''));
+      if(googleReady)select.add(new Option('Google Chirp 3 HD · voix naturelle','google-hd'));
       for(const voice of voices)select.add(new Option(voice.name+' · '+voice.lang,voice.voiceURI));
-      if([...select.options].some(o=>o.value===chosen))select.value=chosen;
-      else {try{const saved=localStorage.getItem('essentiel-voice');if(saved&&[...select.options].some(o=>o.value===saved))select.value=saved}catch{}}
-      select.disabled=voices.length===0;
+      let saved='';
+      try{saved=localStorage.getItem('essentiel-voice')||''}catch{}
+      const exists=value=>value&&[...select.options].some(o=>o.value===value);
+      if(exists(chosen))select.value=chosen;
+      else if(exists(saved))select.value=saved;
+      else if(googleReady)select.value='google-hd';
+      select.disabled=!audioSupported&&!googleReady;
     }
     function syncAudioUI(){
       const active=audio.status==='speaking'||audio.status==='paused';
@@ -433,7 +443,7 @@
       const financeListen=$('financial-listen');
       const financePause=$('financial-audio-pause');
       const financeStop=$('financial-audio-stop');
-      financeListen.disabled=!(audioSupported||audioFiles.finance)||$('financial-digest').hidden||!state.data?.financialBriefing;
+      financeListen.disabled=!(audioSupported||audioFiles.finance||audioFiles.google.finance)||$('financial-digest').hidden||!state.data?.financialBriefing;
       financeListen.setAttribute('aria-pressed',String(financeActive));
       financeListen.textContent=financeActive
         ?(audio.status==='paused'?'▶ Reprendre le point Bourse':'⏹ Arrêter ce point Bourse')
@@ -472,9 +482,9 @@
       if(session!==audio.session)return;
       const item=audio.queue[audio.position];
       if(!item){stopAudio('Lecture terminée.');return}
-      const url=audio.mode==='finance'&&audioFiles.finance?audioFiles.finance:
-        item.recording||audioFiles.items[item.id];
-      if(!audioSupported||audio.useRecording){
+      const googlePath=audioFiles.google.items[item.id];
+      const url=item.recording||(audio.selectedGoogle&&googlePath?googlePath:audioFiles.items[item.id]);
+      if(!audioSupported||audio.useRecording||(audio.selectedGoogle&&Boolean(googlePath))){
         if(!audioUrlSafe(url)){
           audio.position++;speakNext(session);return;
         }
@@ -535,14 +545,14 @@
       const entries=articles.filter(a=>a?.summary?.trim()).slice(0,40).map(a=>({
         id:String(a.id),title:String(a.displayTitle||a.title||'Actualité'),summary:String(a.summary)
       }));
-      if(!audioSupported){
-        if(mode==='finance'&&audioFiles.finance){
-          entries.splice(0,entries.length,{id:'finance-recording',title:'Point Bourse et IPO Maroc',
-            summary:'Résumé financier daté',recording:audioFiles.finance});
-        }else{
-          const eligible=entries.filter(a=>hasRecording(a.id));
-          entries.splice(0,entries.length,...eligible);
-        }
+      const selectedGoogle=$('audio-voice').value==='google-hd';
+      if(mode==='finance'&&((selectedGoogle&&audioFiles.google.finance)||(!audioSupported&&audioFiles.finance))){
+        entries.splice(0,entries.length,{id:'finance-recording',title:'Point Bourse et IPO Maroc',
+          summary:'Résumé financier daté',
+          recording:(selectedGoogle&&audioFiles.google.finance)||audioFiles.finance});
+      }else if(!audioSupported){
+        const eligible=entries.filter(a=>hasRecording(a.id)||Boolean(audioFiles.google.items[a.id]));
+        entries.splice(0,entries.length,...eligible);
       }
       if(!entries.length){audio.note='Aucun audio disponible pour ces actualités.';syncAudioUI();return}
       if(narrator)narrator.cancel();
@@ -550,6 +560,7 @@
       const session=++audio.session;
       audio.queue=entries;audio.position=0;audio.mode=mode;audio.section=state.section;
       audio.useRecording=!audioSupported;
+      audio.selectedGoogle=selectedGoogle;
       audio.note='';audio.status='speaking';syncAudioUI();speakNext(session);
     }
     function financialAudioEntries(){
@@ -594,7 +605,7 @@
       ].filter(a=>a.summary.trim());
     }
     function toggleFinanceAudio(){
-      if(!audioSupported&&!audioFiles.finance)return;
+      if(!audioSupported&&!audioFiles.finance&&!audioFiles.google.finance)return;
       if(audio.mode==='finance'&&audio.status!=='idle'){
         if(audio.status==='paused')togglePauseAudio();
         else stopAudio('Lecture du point Bourse arrêtée.');
