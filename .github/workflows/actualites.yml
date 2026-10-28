@@ -83,6 +83,7 @@ jobs:
         run: |
           mkdir -p dist
           cp index.html dist/index.html
+          cp favicon.svg dist/favicon.svg
           cp news.json dist/news.json
           python -m scripts.generate_audio
           test -f dist/audio/manifest.json
